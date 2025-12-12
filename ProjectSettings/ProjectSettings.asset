@@ -4,7 +4,7 @@
 PlayerSettings:
   m_ObjectHideFlags: 0
   serializedVersion: 24
-  productGUID: d8c9024858411fb49ab92a2ba4063d70
+  productGUID: 95a6aa27b2f0d36489307d9f3c868aec
   AndroidProfiler: 0
   AndroidFilterTouchesWhenObscured: 0
   AndroidEnableSustainedPerformanceMode: 0
@@ -13,7 +13,7 @@ PlayerSettings:
   useOnDemandResources: 0
   accelerometerFrequency: 60
   companyName: DefaultCompany
-  productName: HiPETR-Race
+  productName: HYPER
   defaultCursor: {fileID: 0}
   cursorHotspot: {x: 0, y: 0}
   m_SplashScreenBackgroundColor: {r: 0.13725491, g: 0.12156863, b: 0.1254902, a: 1}
@@ -140,6 +140,7 @@ PlayerSettings:
   bundleVersion: 0.1
   preloadedAssets:
   - {fileID: 11400000, guid: 2f3a07b182aa0c540b0503dda207f8bb, type: 2}
+  - {fileID: 11400000, guid: 77219d79bbb0b414bbc165652e6df3df, type: 2}
   metroInputSource: 0
   wsaTransparentSwapchain: 0
   m_HolographicPauseOnTrackingLoss: 1
@@ -627,7 +628,7 @@ PlayerSettings:
     PS4: UNITY_POST_PROCESSING_STACK_V2
     PS5: UNITY_POST_PROCESSING_STACK_V2
     Stadia: UNITY_POST_PROCESSING_STACK_V2
-    Standalone: MVC_COMMUNITY;UNITY_POST_PROCESSING_STACK_V2;MIRROR;MIRROR_55_0_OR_NEWER;MIRROR_57_0_OR_NEWER;MIRROR_58_0_OR_NEWER;MIRROR_65_0_OR_NEWER;MIRROR_66_0_OR_NEWER;MIRROR_2022_9_OR_NEWER;MIRROR_2022_10_OR_NEWER;MIRROR_70_0_OR_NEWER;MIRROR_71_0_OR_NEWER
+    Standalone: MVC_COMMUNITY;UNITY_POST_PROCESSING_STACK_V2
     WebGL: UNITY_POST_PROCESSING_STACK_V2
     Windows Store Apps: UNITY_POST_PROCESSING_STACK_V2
     XboxOne: UNITY_POST_PROCESSING_STACK_V2
@@ -735,10 +736,10 @@ PlayerSettings:
   apiCompatibilityLevel: 6
   activeInputHandler: 2
   windowsGamepadBackendHint: 0
-  cloudProjectId: ce038d46-4a1c-4fbd-bf46-cb2a10e38042
+  cloudProjectId: 14c7b91a-ab1a-4422-8f67-fa430820d452
   framebufferDepthMemorylessMode: 0
   qualitySettingsNames: []
-  projectName: HiPETR-Race
+  projectName: HYPER 2025-12-12_01-45-57
   organizationId: raweeshalakruvan15
   cloudEnabled: 0
   legacyClampBlendShapeWeights: 0

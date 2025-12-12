@@ -7946,10 +7946,6 @@ namespace Utilities
 
 			return true;
 		}
-
-
-
-		/// problem area 
 		/// <summary>
 		/// Applies torque to a rigidbody at a specific position by adding opposing forces at different points.
 		/// Simulates rotational force by applying pairs of forces in opposite directions at offset positions.
@@ -7959,7 +7955,6 @@ namespace Utilities
 		/// <param name="torque">The torque vector to apply (direction and magnitude).</param>
 		/// <param name="point">The position in world space where the torque should be centered.</param>
 		/// <param name="mode">The force mode to use when applying the forces.</param>
-		/// problem area 
 		public static void AddTorqueAtPosition(Rigidbody rigid, Vector3 torque, Vector3 point, ForceMode mode)
 		{
 			rigid.AddForceAtPosition(.5f * torque.y * Vector3.forward, point + Vector3.left, mode);
@@ -7969,7 +7964,6 @@ namespace Utilities
 			rigid.AddForceAtPosition(.5f * torque.z * Vector3.right, point + Vector3.up, mode);
 			rigid.AddForceAtPosition(.5f * torque.z * Vector3.left, point + Vector3.down, mode);
 		}
-
 		/// <summary>
 		/// Checks if a directory contains no files or subdirectories.
 		/// Uses Directory.EnumerateFileSystemEntries for efficient checking without loading all entries into memory.
