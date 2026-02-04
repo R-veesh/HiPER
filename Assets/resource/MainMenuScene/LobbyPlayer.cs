@@ -13,60 +13,40 @@ public class LobbyPlayer : NetworkBehaviour
     {
         base.OnStartServer();
         playerName = "Player " + connectionToClient.connectionId;
-        
-        if (LobbyUI.Instance != null)
-        {
-            LobbyUI.Instance.RegisterPlayer(this);
-        }
-        Debug.Log("LobbyPlayer: OnStartServer called. Added player: " + playerName);
-    }
-
-    public override void OnStartClient()
-    {
-        base.OnStartClient();
-        
-        if (LobbyUI.Instance != null)
-        {
-            LobbyUI.Instance.RegisterPlayer(this);
-        }
-        Debug.Log("LobbyPlayer: OnStartClient called for " + playerName);
+        LobbyManager.Instance.AddPlayer(netIdentity);
+        Debug.Log("LobbyPlayer: OnStartServer called. Added player: " + playerName);  // NEW: Confirm player added
     }
 
     public override void OnStartLocalPlayer()
     {
         base.OnStartLocalPlayer();
-        
-        if (LobbyUI.Instance != null)
-        {
-            LobbyUI.Instance.SetLocalPlayer(this);
-        }
-        Debug.Log("LobbyPlayer: OnStartLocalPlayer called for " + playerName);
+        LobbyManager.Instance.SetLocalPlayer(this);
+        Debug.Log("LobbyPlayer: OnStartLocalPlayer called for " + playerName);  // NEW: Confirm local player set
     }
 
     public override void OnStopClient()
     {
         base.OnStopClient();
-        
-        if (LobbyUI.Instance != null)
+        if (isServer)
         {
-            LobbyUI.Instance.UnregisterPlayer(this);
+            LobbyManager.Instance.RemovePlayer(netIdentity);
+            Debug.Log("LobbyPlayer: Removed player on disconnect");  // NEW
         }
-        Debug.Log("LobbyPlayer: Removed player on disconnect");
     }
 
     private void OnReadyChanged(bool oldValue, bool newValue)
     {
-        if (LobbyUI.Instance != null)
+        if (isLocalPlayer)
         {
-            LobbyUI.Instance.Refresh();
+            LobbyManager.Instance.UpdateReadyButton();
+            Debug.Log("LobbyPlayer: Ready changed to " + newValue);  // NEW: Confirm ready toggle
         }
-        Debug.Log("LobbyPlayer: Ready changed to " + newValue);
     }
 
     [Command]
     public void CmdToggleReady()
     {
         isReady = !isReady;
-        Debug.Log("LobbyPlayer: CmdToggleReady executed on server. New ready: " + isReady);
+        Debug.Log("LobbyPlayer: CmdToggleReady executed on server. New ready: " + isReady);  // NEW
     }
 }
