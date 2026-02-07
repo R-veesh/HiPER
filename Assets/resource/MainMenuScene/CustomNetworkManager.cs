@@ -1,54 +1,96 @@
+using UnityEngine;
 using Mirror;
 using UnityEngine;
-using UnityEngine.UI;
 
 public class CustomNetworkManager : NetworkManager
 {
-    public static CustomNetworkManager Singleton => (CustomNetworkManager)singleton;
+    [Header("Scene Management")]
+    [Scene] public string mainMenuScene = "MainMenuScene";
+    [Scene] public string lobbyScene = "LobbyScene";
+    [Scene] public string gameScene = "GameScene";
 
-    public GameObject mainMenuPanel;  // Drag MainMenuPanel in Inspector
-    public GameObject lobbyPanel;     // Drag LobbyPanel in Inspector
-    public InputField ipInputField;   // Drag IPInputField in Inspector
+    [Header("Lobby Settings")]
+    public GameObject lobbyPlayerPrefab;
 
-    public override void OnStartClient()
+    private LobbyManager lobbyManager;
+
+    public override void OnStartHost()
     {
-        base.OnStartClient();
-        if (mainMenuPanel != null) mainMenuPanel.SetActive(false);
-        if (lobbyPanel != null) lobbyPanel.SetActive(true);
-        Debug.Log("CustomNetworkManager: OnStartClient - Showing LobbyPanel");  // NEW
+        Debug.Log("Host started – going to LobbyScene");
+        ServerChangeScene(lobbyScene);
     }
 
-    public override void OnStopClient()
+    public override void OnClientConnect()
     {
-        base.OnStopClient();
-        if (mainMenuPanel != null) mainMenuPanel.SetActive(true);
-        if (lobbyPanel != null) lobbyPanel.SetActive(false);
-        Debug.Log("CustomNetworkManager: OnStopClient - Showing MainMenuPanel");  // NEW
+        Debug.Log("Client connected – staying in current scene");
+        base.OnClientConnect();
     }
 
-    public void JoinGame()
+    public override void OnServerAddPlayer(NetworkConnectionToClient conn)
     {
-        if (string.IsNullOrEmpty(ipInputField.text))
+        Debug.Log($"CustomNetworkManager: Adding player for connection {conn.connectionId}");
+
+        if (lobbyManager != null)
         {
-            Debug.LogWarning("IP is empty! Using localhost.");
-            networkAddress = "localhost";
+            lobbyManager.OnPlayerAdded(conn);
         }
         else
         {
-            networkAddress = ipInputField.text;
+            // Fallback to default behavior if no lobby manager
+            base.OnServerAddPlayer(conn);
         }
-        StartClient();
+    }
+
+    public override void OnServerDisconnect(NetworkConnectionToClient conn)
+    {
+        Debug.Log($"Client disconnected: {conn.connectionId}");
+        
+        if (lobbyManager != null)
+        {
+            lobbyManager.OnPlayerRemoved(conn);
+        }
+
+        base.OnServerDisconnect(conn);
     }
 
     public override void OnServerSceneChanged(string sceneName)
     {
         base.OnServerSceneChanged(sceneName);
-        Debug.Log("CustomNetworkManager: Server scene changed to " + sceneName);  // NEW: Confirm scene load on server
+        
+        // Find lobby manager when in lobby scene
+        if (sceneName == lobbyScene)
+        {
+            lobbyManager = FindObjectOfType<LobbyManager>();
+            if (lobbyManager != null)
+            {
+                Debug.Log("LobbyManager found and connected");
+            }
+            else
+            {
+                Debug.LogWarning("LobbyManager not found in LobbyScene!");
+            }
+        }
     }
 
-    public override void OnClientSceneChanged()
+    public void LoadGameScene()
     {
-        base.OnClientSceneChanged();
-        Debug.Log("CustomNetworkManager: Client scene changed to " + UnityEngine.SceneManagement.SceneManager.GetActiveScene().name);  // NEW: Confirm on client (host is client too)
+        if (NetworkServer.active)
+        {
+            Debug.Log("Loading Game Scene");
+            ServerChangeScene(gameScene);
+        }
+    }
+
+    public void ReturnToMainMenu()
+    {
+        if (NetworkServer.active)
+        {
+            ServerChangeScene(mainMenuScene);
+        }
+        else
+        {
+            NetworkManager.singleton.StopClient();
+            UnityEngine.SceneManagement.SceneManager.LoadScene(mainMenuScene);
+        }
     }
 }

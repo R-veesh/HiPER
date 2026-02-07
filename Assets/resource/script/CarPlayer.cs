@@ -26,7 +26,7 @@ public class CarPlayer : NetworkBehaviour
             EnableControl();
     }
 
-    void EnableControl()
+public void EnableControl()
     {
         if (!isLocalPlayer) return;
 
