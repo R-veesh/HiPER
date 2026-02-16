@@ -66,6 +66,13 @@ namespace resource.LobbyScene
                     AddSuccess("✅ CustomNetworkManager: LobbyPlayer prefab assigned");
             }
 
+            // Check PlayerDataContainer
+            var playerDataContainer = FindObjectOfType<resource.MainMenuScene.PlayerDataContainer>();
+            if (playerDataContainer == null)
+                AddWarning("⚠️ PlayerDataContainer not found (needed for scene transitions)");
+            else
+                AddSuccess("✅ PlayerDataContainer found");
+
             // Check LobbyUI
             var lobbyUI = FindObjectOfType<LobbyUI>();
             if (lobbyUI == null)

@@ -59,16 +59,28 @@ namespace resource.LobbyScene
             InitializePlayerPlates();
             HideStartButton();
             
+            // DISABLE buttons until player is found
+            DisableAllButtons();
+            
             lobbyManager = LobbyManager.Instance;
             countdownManager = LobbyCountdown.Instance;
             
             if (lobbyManager == null)
             {
-                Debug.LogError("LobbyManager not found!");
+                Debug.LogError("[LobbyUI] LobbyManager not found!");
+            }
+            else
+            {
+                Debug.Log("[LobbyUI] Initialized, waiting for local player...");
             }
 
             // Show initial status
             UpdateStatusPanel(false);
+            
+            if (statusText != null)
+            {
+                statusText.text = "Loading...";
+            }
         }
 
         void Update()
@@ -76,6 +88,23 @@ namespace resource.LobbyScene
             if (localLobbyPlayer == null)
             {
                 FindLocalPlayer();
+                
+                // Log every few seconds if still waiting
+                if (Time.frameCount % 120 == 0) // Every ~2 seconds at 60fps
+                {
+                    if (NetworkClient.localPlayer == null)
+                    {
+                        Debug.LogWarning("[LobbyUI] Still waiting for NetworkClient.localPlayer...");
+                    }
+                    else
+                    {
+                        var lobbyPlayer = NetworkClient.localPlayer.GetComponent<LobbyPlayer>();
+                        if (lobbyPlayer == null)
+                        {
+                            Debug.LogWarning("[LobbyUI] NetworkClient.localPlayer exists but has no LobbyPlayer component!");
+                        }
+                    }
+                }
             }
             else
             {
@@ -103,12 +132,43 @@ namespace resource.LobbyScene
         {
             if (NetworkClient.localPlayer != null)
             {
+                Debug.Log("[LobbyUI] NetworkClient.localPlayer found!");
                 localLobbyPlayer = NetworkClient.localPlayer.GetComponent<LobbyPlayer>();
+                
                 if (localLobbyPlayer != null)
                 {
+                    Debug.Log($"[LobbyUI] Local player found! Name: {localLobbyPlayer.playerName}, Car: {localLobbyPlayer.selectedCarIndex}");
+                    EnableAllButtons();
                     UpdateUI();
+                    
+                    if (statusText != null && (statusText.text == "Loading..." || statusText.text.Contains("Waiting")))
+                    {
+                        statusText.text = "Select your car and click READY";
+                    }
+                }
+                else
+                {
+                    Debug.LogWarning("[LobbyUI] NetworkClient.localPlayer exists but missing LobbyPlayer component!");
                 }
             }
+        }
+
+        void DisableAllButtons()
+        {
+            if (readyButton != null) readyButton.interactable = false;
+            if (nextCarButton != null) nextCarButton.interactable = false;
+            if (prevCarButton != null) prevCarButton.interactable = false;
+            if (startButton != null) startButton.interactable = false;
+            Debug.Log("[LobbyUI] Buttons disabled - waiting for player");
+        }
+
+        void EnableAllButtons()
+        {
+            if (readyButton != null) readyButton.interactable = true;
+            if (nextCarButton != null) nextCarButton.interactable = true;
+            if (prevCarButton != null) prevCarButton.interactable = true;
+            // Start button will be enabled by UpdateUI based on conditions
+            Debug.Log("[LobbyUI] Buttons enabled");
         }
 
         void SetupButtonListeners()
@@ -271,25 +331,115 @@ namespace resource.LobbyScene
 
         void OnReadyClicked()
         {
-            lobbyManager?.OnReadyClicked();
+            Debug.Log("[LobbyUI] Ready button clicked");
+            
+            // Try to find player if null
+            if (localLobbyPlayer == null)
+            {
+                FindLocalPlayer();
+            }
+            
+            if (lobbyManager == null)
+            {
+                Debug.LogError("[LobbyUI] Cannot click ready - LobbyManager is null!");
+                statusText.text = "ERROR: LobbyManager not found!";
+                return;
+            }
+            
+            if (localLobbyPlayer == null)
+            {
+                Debug.LogError("[LobbyUI] Cannot click ready - Local player not spawned yet!");
+                statusText.text = "Waiting for player to spawn...";
+                return;
+            }
+            
+            lobbyManager.OnReadyClicked();
         }
 
         void OnStartClicked()
         {
+            Debug.Log("[LobbyUI] Start button clicked");
+            
+            if (lobbyManager == null)
+            {
+                Debug.LogError("[LobbyUI] Cannot start game - LobbyManager is null!");
+                return;
+            }
+            
             if (uiAnimator != null)
                 uiAnimator.SetTrigger(startAnimTrigger);
             
-            lobbyManager?.OnStartClicked();
+            lobbyManager.OnStartClicked();
         }
 
         void OnNextCarClicked()
         {
-            localLobbyPlayer?.CmdNextCar();
+            Debug.Log("[LobbyUI] Next Car button clicked");
+            
+            // Try to find player if null
+            if (localLobbyPlayer == null)
+            {
+                FindLocalPlayer();
+            }
+            
+            if (localLobbyPlayer == null)
+            {
+                Debug.LogError("[LobbyUI] Cannot change car - Local player not spawned yet! Waiting...");
+                statusText.text = "Waiting for player to spawn...";
+                return;
+            }
+            
+            if (localLobbyPlayer.isReady)
+            {
+                Debug.Log("[LobbyUI] Cannot change car - Player is already ready!");
+                statusText.text = "Cannot change car - Already ready!";
+                return;
+            }
+            
+            if (localLobbyPlayer.carPrefabs == null || localLobbyPlayer.carPrefabs.Length == 0)
+            {
+                Debug.LogError("[LobbyUI] Cannot change car - No car prefabs assigned! Check LobbyPlayer prefab.");
+                statusText.text = "ERROR: No cars assigned!";
+                return;
+            }
+            
+            localLobbyPlayer.CmdNextCar();
+            statusText.text = "Car changed!";
         }
 
         void OnPrevCarClicked()
         {
-            localLobbyPlayer?.CmdPrevCar();
+            Debug.Log("[LobbyUI] Prev Car button clicked");
+            
+            // Try to find player if null
+            if (localLobbyPlayer == null)
+            {
+                FindLocalPlayer();
+            }
+            
+            if (localLobbyPlayer == null)
+            {
+                Debug.LogError("[LobbyUI] Cannot change car - Local player not spawned yet! Waiting...");
+                statusText.text = "Waiting for player to spawn...";
+                return;
+            }
+            
+            if (localLobbyPlayer.isReady)
+            {
+                Debug.Log("[LobbyUI] Cannot change car - Player is already ready!");
+                statusText.text = "Cannot change car - Already ready!";
+                return;
+            }
+            
+            if (localLobbyPlayer.carPrefabs == null || localLobbyPlayer.carPrefabs.Length == 0)
+            {
+                Debug.LogError("[LobbyUI] Cannot change car - No car prefabs assigned! Check LobbyPlayer prefab.");
+                statusText.text = "ERROR: No cars assigned!";
+                return;
+            }
+            
+            localLobbyPlayer.CmdPrevCar();
+            statusText.text = "Car changed!";
         }
 
         void OnLeaveClicked()

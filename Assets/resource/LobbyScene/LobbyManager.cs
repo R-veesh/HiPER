@@ -35,10 +35,41 @@ namespace resource.LobbyScene
             else
                 Destroy(gameObject);
 
-            if (spawnPoints != null)
+            if (spawnPoints != null && spawnPoints.Length > 0)
+            {
                 usedSpawnPoints = new bool[spawnPoints.Length];
+                Debug.Log($"[LobbyManager] Initialized with {spawnPoints.Length} spawn points");
+            }
             else
+            {
                 usedSpawnPoints = new bool[0];
+                Debug.LogError("[LobbyManager] CRITICAL: No spawn points assigned! Players cannot spawn.");
+            }
+            
+            if (lobbyPlayerPrefab == null)
+            {
+                Debug.LogError("[LobbyManager] CRITICAL: LobbyPlayer prefab not assigned!");
+            }
+            else
+            {
+                // Check if car prefabs are assigned in the prefab
+                var lobbyPlayer = lobbyPlayerPrefab.GetComponent<LobbyPlayer>();
+                if (lobbyPlayer != null)
+                {
+                    if (lobbyPlayer.carPrefabs == null || lobbyPlayer.carPrefabs.Length == 0)
+                    {
+                        Debug.LogError("[LobbyManager] CRITICAL: LobbyPlayer prefab has no car prefabs assigned!");
+                    }
+                    else
+                    {
+                        Debug.Log($"[LobbyManager] LobbyPlayer prefab has {lobbyPlayer.carPrefabs.Length} car prefabs");
+                    }
+                }
+                else
+                {
+                    Debug.LogError("[LobbyManager] CRITICAL: LobbyPlayer prefab missing LobbyPlayer component!");
+                }
+            }
         }
 
         public override void OnStartServer()
@@ -244,8 +275,20 @@ namespace resource.LobbyScene
         [Server]
         public void StartGame()
         {
-            Debug.Log("Starting game!");
-            var networkManager = NetworkManager.singleton as CustomNetworkManager;
+            Debug.Log("[LobbyManager] Starting game!");
+            
+            // Save all player data before scene change
+            var playerDataContainer = FindObjectOfType<resource.MainMenuScene.PlayerDataContainer>();
+            if (playerDataContainer != null)
+            {
+                playerDataContainer.SaveAllPlayerData();
+            }
+            else
+            {
+                Debug.LogWarning("[LobbyManager] PlayerDataContainer not found! Player selections won't persist to game.");
+            }
+            
+            var networkManager = NetworkManager.singleton as resource.MainMenuScene.CustomNetworkManager;
             if (networkManager != null)
             {
                 // Set the selected map scene
@@ -255,6 +298,10 @@ namespace resource.LobbyScene
                 }
                 
                 networkManager.LoadGameScene();
+            }
+            else
+            {
+                Debug.LogError("[LobbyManager] Cannot start game - CustomNetworkManager not found!");
             }
         }
 

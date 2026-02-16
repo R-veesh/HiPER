@@ -84,14 +84,33 @@ namespace resource.LobbyScene
         [Server]
         void ActuallyStartGame()
         {
-            // Actually start the game on server
+            Debug.Log("[LobbyCountdown] ActuallyStartGame called - initiating game start");
+            
+            // First save player data before anything gets destroyed
+            var playerDataContainer = FindObjectOfType<resource.MainMenuScene.PlayerDataContainer>();
+            if (playerDataContainer != null)
+            {
+                playerDataContainer.SaveAllPlayerData();
+            }
+            
+            // Then trigger game start through LobbyManager
             if (LobbyManager.Instance != null)
             {
                 LobbyManager.Instance.StartGame();
             }
             else
             {
-                Debug.LogError("Cannot start game - LobbyManager instance is null!");
+                // Fallback: directly trigger scene change if LobbyManager is already destroyed
+                Debug.LogWarning("[LobbyCountdown] LobbyManager instance is null, attempting direct scene change");
+                var networkManager = NetworkManager.singleton as resource.MainMenuScene.CustomNetworkManager;
+                if (networkManager != null)
+                {
+                    networkManager.LoadGameScene();
+                }
+                else
+                {
+                    Debug.LogError("[LobbyCountdown] Cannot start game - both LobbyManager and CustomNetworkManager are null!");
+                }
             }
         }
 

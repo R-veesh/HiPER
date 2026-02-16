@@ -18,6 +18,41 @@ namespace resource.MainMenuScene
 
         private LobbyManager lobbyManager;
 
+        void Start()
+        {
+            // Ensure auto create player is enabled
+            if (!autoCreatePlayer)
+            {
+                Debug.LogWarning("[CustomNetworkManager] autoCreatePlayer was disabled! Enabling it now.");
+                autoCreatePlayer = true;
+            }
+            
+            // CRITICAL: Check if player prefab is registered
+            if (playerPrefab == null && lobbyPlayerPrefab != null)
+            {
+                Debug.Log("[CustomNetworkManager] Setting playerPrefab to lobbyPlayerPrefab");
+                playerPrefab = lobbyPlayerPrefab;
+            }
+            
+            if (playerPrefab == null)
+            {
+                Debug.LogError("[CustomNetworkManager] CRITICAL: playerPrefab is not assigned! Players will not spawn!");
+            }
+            else
+            {
+                // Check if prefab has NetworkIdentity
+                var netId = playerPrefab.GetComponent<NetworkIdentity>();
+                if (netId == null)
+                {
+                    Debug.LogError("[CustomNetworkManager] CRITICAL: playerPrefab is missing NetworkIdentity component!");
+                }
+                else
+                {
+                    Debug.Log($"[CustomNetworkManager] playerPrefab configured: {playerPrefab.name}");
+                }
+            }
+        }
+
         public override void OnStartHost()
         {
             Debug.Log("HOST button pressed – starting host and loading LobbyScene");
@@ -28,11 +63,60 @@ namespace resource.MainMenuScene
 
         public override void OnClientConnect()
         {
-            Debug.Log("JOIN button pressed – client connected successfully");
+            Debug.Log("[CustomNetworkManager] Client connected successfully");
+            
+            // Add player when client connects (only if autoCreatePlayer is disabled)
+            // Mirror will auto-create player if autoCreatePlayer is true
             base.OnClientConnect();
             
-            // Client should automatically go to LobbyScene when connected
-            // The server will handle the scene change
+            Debug.Log($"[CustomNetworkManager] Local player: {(NetworkClient.localPlayer != null ? "EXISTS" : "NULL")}");
+        }
+        
+        public override void OnClientChangeScene(string newSceneName, SceneOperation sceneOperation, bool customHandling)
+        {
+            Debug.Log($"[CustomNetworkManager] Client changing scene to: {newSceneName}");
+            base.OnClientChangeScene(newSceneName, sceneOperation, customHandling);
+        }
+        
+        public override void OnClientSceneChanged()
+        {
+            base.OnClientSceneChanged();
+            Debug.Log($"[CustomNetworkManager] Client scene changed. Local player: {(NetworkClient.localPlayer != null ? "EXISTS" : "NULL")}");
+            
+            if (NetworkClient.localPlayer == null)
+            {
+                Debug.LogWarning("[CustomNetworkManager] WARNING: Local player is null after scene change!");
+                
+                // Try to find any existing player object
+                var existingPlayer = FindObjectOfType<LobbyPlayer>();
+                if (existingPlayer != null && existingPlayer.isLocalPlayer)
+                {
+                    Debug.Log("[CustomNetworkManager] Found existing local player object!");
+                    // This shouldn't happen, but if it does, something is wrong with Mirror's player assignment
+                }
+            }
+            else
+            {
+                var lobbyPlayer = NetworkClient.localPlayer.GetComponent<LobbyPlayer>();
+                if (lobbyPlayer == null)
+                {
+                    Debug.LogError("[CustomNetworkManager] CRITICAL: Local player has no LobbyPlayer component!");
+                    Debug.Log($"[CustomNetworkManager] Player object name: {NetworkClient.localPlayer.name}");
+                    
+                    // Build component list
+                    var components = NetworkClient.localPlayer.GetComponents<Component>();
+                    string componentList = "";
+                    foreach (var comp in components)
+                    {
+                        componentList += comp.GetType().Name + ", ";
+                    }
+                    Debug.Log($"[CustomNetworkManager] Components on player: {componentList}");
+                }
+                else
+                {
+                    Debug.Log($"[CustomNetworkManager] ✓ Local player ready: {lobbyPlayer.playerName}");
+                }
+            }
         }
 
         public override void OnServerAddPlayer(NetworkConnectionToClient conn)
@@ -46,15 +130,50 @@ namespace resource.MainMenuScene
                 NetworkServer.AddPlayerForConnection(conn, player);
                 
                 // Let LobbyManager handle the rest
+                // Note: lobbyManager might be null if scene hasn't loaded yet
                 if (lobbyManager != null)
                 {
                     lobbyManager.OnPlayerAdded(conn);
+                }
+                else
+                {
+                    // Queue the player for later assignment when lobby manager is ready
+                    Debug.Log($"LobbyManager not ready yet, queuing player {conn.connectionId} for assignment");
+                    StartCoroutine(WaitForLobbyManagerAndAssignPlayer(conn));
                 }
             }
             else
             {
                 Debug.LogError("LobbyPlayer prefab not assigned!");
                 base.OnServerAddPlayer(conn);
+            }
+        }
+
+        private System.Collections.IEnumerator WaitForLobbyManagerAndAssignPlayer(NetworkConnectionToClient conn)
+        {
+            // Wait up to 5 seconds for LobbyManager to be ready
+            float timeout = 5f;
+            float elapsed = 0f;
+            
+            while (lobbyManager == null && elapsed < timeout)
+            {
+                // Try to find lobby manager
+                lobbyManager = FindObjectOfType<LobbyManager>();
+                if (lobbyManager == null)
+                {
+                    elapsed += 0.1f;
+                    yield return new WaitForSeconds(0.1f);
+                }
+            }
+            
+            if (lobbyManager != null)
+            {
+                Debug.Log($"LobbyManager found after {elapsed:F1}s, assigning player {conn.connectionId}");
+                lobbyManager.OnPlayerAdded(conn);
+            }
+            else
+            {
+                Debug.LogError($"Failed to find LobbyManager after {timeout}s! Player {conn.connectionId} won't be assigned to a plate.");
             }
         }
 
