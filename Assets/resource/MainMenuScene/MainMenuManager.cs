@@ -1,69 +1,73 @@
 using UnityEngine;
 using UnityEngine.UI;
 using Mirror;
+using resource.MainMenuScene;
 
-public class MainMenuManager : MonoBehaviour
+namespace resource.MainMenuScene
 {
-    [Header("UI Buttons")]
-    public Button hostButton;
-    public Button joinButton;
-    public Button quitButton;
-
-    [Header("Network Settings")]
-    public string networkAddress = "localhost";
-
-    private void Start()
+    public class MainMenuManager : MonoBehaviour
     {
-        SetupButtonListeners();
-        SetupNetworkManager();
-    }
+        [Header("UI Buttons")]
+        public Button hostButton;
+        public Button joinButton;
+        public Button quitButton;
 
-    void SetupButtonListeners()
-    {
-        hostButton.onClick.AddListener(OnHostClicked);
-        joinButton.onClick.AddListener(OnJoinClicked);
-        quitButton.onClick.AddListener(OnQuitClicked);
-    }
+        [Header("Network Settings")]
+        public string networkAddress = "localhost";
 
-    void SetupNetworkManager()
-    {
-        var networkManager = NetworkManager.singleton as CustomNetworkManager;
-        if (networkManager != null)
+        private void Start()
         {
-            networkManager.networkAddress = networkAddress;
+            SetupButtonListeners();
+            SetupNetworkManager();
         }
-    }
 
-    void OnHostClicked()
-    {
-        if (!NetworkServer.active && !NetworkClient.active)
+        void SetupButtonListeners()
         {
-            Debug.Log("Starting Host – will load LobbyScene");
-            NetworkManager.singleton.StartHost();
+            hostButton.onClick.AddListener(OnHostClicked);
+            joinButton.onClick.AddListener(OnJoinClicked);
+            quitButton.onClick.AddListener(OnQuitClicked);
         }
-        else
-        {
-            Debug.LogWarning("Already connected as host or client");
-        }
-    }
 
-    void OnJoinClicked()
-    {
-        if (!NetworkClient.active)
+        void SetupNetworkManager()
         {
-            Debug.Log($"Joining game at {networkAddress}");
-            NetworkManager.singleton.networkAddress = networkAddress;
-            NetworkManager.singleton.StartClient();
+            var networkManager = NetworkManager.singleton as CustomNetworkManager;
+            if (networkManager != null)
+            {
+                networkManager.networkAddress = networkAddress;
+            }
         }
-        else
-        {
-            Debug.LogWarning("Already connected as client");
-        }
-    }
 
-    void OnQuitClicked()
-    {
-        Debug.Log("Quitting game");
-        Application.Quit();
+        void OnHostClicked()
+        {
+            if (!NetworkServer.active && !NetworkClient.active)
+            {
+                Debug.Log("Starting Host – will load LobbyScene");
+                NetworkManager.singleton.StartHost();
+            }
+            else
+            {
+                Debug.LogWarning("Already connected as host or client");
+            }
+        }
+
+        void OnJoinClicked()
+        {
+            if (!NetworkClient.active)
+            {
+                Debug.Log($"Joining game at {networkAddress}");
+                NetworkManager.singleton.networkAddress = networkAddress;
+                NetworkManager.singleton.StartClient();
+            }
+            else
+            {
+                Debug.LogWarning("Already connected as client");
+            }
+        }
+
+        void OnQuitClicked()
+        {
+            Debug.Log("Quitting game");
+            Application.Quit();
+        }
     }
 }

@@ -1,128 +1,289 @@
 using Mirror;
 using UnityEngine;
 using System.Collections.Generic;
+using resource.MainMenuScene;
 
-public class LobbyManager : NetworkBehaviour
+namespace resource.LobbyScene
 {
-    public static LobbyManager Instance;
-
-    [Header("Spawn Points")]
-    public Transform[] spawnPoints;
-
-    [Header("Player Prefab")]
-    public GameObject lobbyPlayerPrefab;
-
-    private List<LobbyPlayer> lobbyPlayers = new List<LobbyPlayer>();
-    private bool[] usedSpawnPoints;
-
-    void Awake()
+    [RequireComponent(typeof(NetworkIdentity))]
+    public class LobbyManager : NetworkBehaviour
     {
-        if (Instance == null)
-            Instance = this;
-        else
-            Destroy(gameObject);
+        public static LobbyManager Instance;
 
-        usedSpawnPoints = new bool[spawnPoints.Length];
-    }
+        [Header("Spawn Points")]
+        public Transform[] spawnPoints;
 
-    public override void OnStartServer()
-    {
-        base.OnStartServer();
-        Debug.Log("LobbyManager started on server");
-    }
+        [Header("Player Prefab")]
+        public GameObject lobbyPlayerPrefab;
 
-    public void OnPlayerAdded(NetworkConnectionToClient conn)
-    {
-        Debug.Log($"Adding player for connection {conn.connectionId}");
+        [Header("Map Settings")]
+        public MapData[] availableMaps;
+        public int selectedMapIndex = 0;
+        [SyncVar] public int currentMapVotes = 0;
 
-        // Find available spawn point
-        int spawnIndex = GetAvailableSpawnPoint();
-        if (spawnIndex == -1)
+        [Header("Player Management")]
+        [SyncVar] public int connectedPlayerCount = 0;
+
+        private List<LobbyPlayer> lobbyPlayers = new List<LobbyPlayer>();
+        private bool[] usedSpawnPoints;
+        private Dictionary<int, int> mapVoteCounts = new Dictionary<int, int>();
+
+        void Awake()
         {
-            Debug.LogError("No available spawn points!");
-            return;
+            if (Instance == null)
+                Instance = this;
+            else
+                Destroy(gameObject);
+
+            if (spawnPoints != null)
+                usedSpawnPoints = new bool[spawnPoints.Length];
+            else
+                usedSpawnPoints = new bool[0];
         }
 
-        // Spawn player at assigned position
-        GameObject player = Instantiate(lobbyPlayerPrefab, spawnPoints[spawnIndex].position, spawnPoints[spawnIndex].rotation);
-        NetworkServer.AddPlayerForConnection(conn, player);
-
-        // Assign spawn point to player
-        var lobbyPlayer = player.GetComponent<LobbyPlayer>();
-        lobbyPlayer.SetPlatePosition(spawnPoints[spawnIndex]);
-
-        // Mark spawn point as used
-        usedSpawnPoints[spawnIndex] = true;
-        lobbyPlayers.Add(lobbyPlayer);
-
-        Debug.Log($"Player {conn.connectionId} spawned at plate {spawnIndex + 1}");
-    }
-
-    public void OnPlayerRemoved(NetworkConnectionToClient conn)
-    {
-        if (conn.identity != null)
+        public override void OnStartServer()
         {
-            var lobbyPlayer = conn.identity.GetComponent<LobbyPlayer>();
-            if (lobbyPlayer != null)
-            {
-                // Free up spawn point
-                for (int i = 0; i < spawnPoints.Length; i++)
-                {
-                    if (spawnPoints[i].position == lobbyPlayer.transform.position)
-                    {
-                        usedSpawnPoints[i] = false;
-                        break;
-                    }
-                }
+            base.OnStartServer();
+            Debug.Log("LobbyManager started on server");
+            InitializeMapVoting();
+        }
 
-                lobbyPlayers.Remove(lobbyPlayer);
+        void InitializeMapVoting()
+        {
+            mapVoteCounts.Clear();
+            for (int i = 0; i < availableMaps.Length; i++)
+            {
+                mapVoteCounts[i] = 0;
             }
         }
-    }
 
-    int GetAvailableSpawnPoint()
-    {
-        for (int i = 0; i < usedSpawnPoints.Length; i++)
+        public void OnPlayerAdded(NetworkConnectionToClient conn)
         {
-            if (!usedSpawnPoints[i])
-                return i;
+            Debug.Log($"Adding player for connection {conn.connectionId}");
+
+            if (conn.identity == null)
+            {
+                Debug.LogError($"Connection {conn.connectionId} has no identity!");
+                return;
+            }
+
+            // Find available spawn point
+            int spawnIndex = GetAvailableSpawnPoint();
+            if (spawnIndex == -1)
+            {
+                Debug.LogError("No available spawn points!");
+                return;
+            }
+
+            // Get the already spawned player (spawned by CustomNetworkManager)
+            GameObject player = conn.identity.gameObject;
+            var lobbyPlayer = player.GetComponent<LobbyPlayer>();
+            
+            if (lobbyPlayer == null)
+            {
+                Debug.LogError($"Player object missing LobbyPlayer component!");
+                return;
+            }
+
+            // Assign spawn point to player
+            lobbyPlayer.SetPlatePosition(spawnPoints[spawnIndex], spawnIndex);
+            
+            // Move player to spawn position
+            player.transform.position = spawnPoints[spawnIndex].position;
+            player.transform.rotation = spawnPoints[spawnIndex].rotation;
+
+            // Mark spawn point as used
+            usedSpawnPoints[spawnIndex] = true;
+            lobbyPlayers.Add(lobbyPlayer);
+            connectedPlayerCount = lobbyPlayers.Count;
+
+            Debug.Log($"Player {conn.connectionId} assigned to plate {spawnIndex + 1}");
         }
-        return -1;
-    }
 
-    public bool AllPlayersReady()
-    {
-        foreach (var player in lobbyPlayers)
+        public void OnPlayerRemoved(NetworkConnectionToClient conn)
         {
-            if (!player.isReady)
-                return false;
+            if (conn.identity != null)
+            {
+                var lobbyPlayer = conn.identity.GetComponent<LobbyPlayer>();
+                if (lobbyPlayer != null)
+                {
+                    // Free up spawn point
+                    if (lobbyPlayer.plateIndex >= 0 && lobbyPlayer.plateIndex < spawnPoints.Length)
+                    {
+                        usedSpawnPoints[lobbyPlayer.plateIndex] = false;
+                        
+                        // Remove map vote
+                        if (mapVoteCounts.ContainsKey(lobbyPlayer.selectedMapIndex))
+                        {
+                            mapVoteCounts[lobbyPlayer.selectedMapIndex]--;
+                        }
+                    }
+
+                    lobbyPlayers.Remove(lobbyPlayer);
+                    connectedPlayerCount = lobbyPlayers.Count;
+                    
+                    // Check countdown status
+                    if (LobbyCountdown.Instance != null)
+                    {
+                        LobbyCountdown.Instance.OnPlayerReadinessChanged(this);
+                    }
+                }
+            }
         }
-        return lobbyPlayers.Count > 0;
-    }
 
-    public void OnStartClicked()
-    {
-        if (!isServer) return; // HOST ONLY
-
-        if (!AllPlayersReady())
+        [Server]
+        public void OnPlayerVotedForMap()
         {
-            Debug.Log("Not all players are ready!");
-            return;
+            // Recalculate map votes
+            InitializeMapVoting();
+            int maxVotes = 0;
+            int winningMapIndex = 0;
+
+            foreach (var player in lobbyPlayers)
+            {
+                if (mapVoteCounts.ContainsKey(player.selectedMapIndex))
+                {
+                    mapVoteCounts[player.selectedMapIndex]++;
+                    
+                    // Track winning map
+                    if (mapVoteCounts[player.selectedMapIndex] > maxVotes)
+                    {
+                        maxVotes = mapVoteCounts[player.selectedMapIndex];
+                        winningMapIndex = player.selectedMapIndex;
+                    }
+                }
+            }
+
+            // Update selected map
+            selectedMapIndex = winningMapIndex;
+            currentMapVotes = maxVotes;
+            
+            string mapName = (availableMaps != null && availableMaps.Length > selectedMapIndex && availableMaps[selectedMapIndex] != null) 
+                ? availableMaps[selectedMapIndex].mapName 
+                : "Unknown";
+            Debug.Log($"Map voting updated. Winning map: {mapName} with {maxVotes} votes");
+            
+            // Notify all clients
+            RpcUpdateMapSelection(selectedMapIndex, maxVotes);
         }
 
-        Debug.Log("All players ready! Starting game...");
-        var networkManager = NetworkManager.singleton as CustomNetworkManager;
-        if (networkManager != null)
+        [ClientRpc]
+        void RpcUpdateMapSelection(int mapIndex, int votes)
         {
-            networkManager.LoadGameScene();
+            selectedMapIndex = mapIndex;
+            currentMapVotes = votes;
         }
-    }
 
-    public void OnReadyClicked()
-    {
-        if (NetworkClient.localPlayer != null)
+        [Server]
+        public void ForceMapSelection(int mapIndex)
         {
-            NetworkClient.localPlayer.GetComponent<LobbyPlayer>()?.CmdSetReady();
+            if (mapIndex >= 0 && mapIndex < availableMaps.Length)
+            {
+                selectedMapIndex = mapIndex;
+                RpcUpdateMapSelection(mapIndex, lobbyPlayers.Count);
+            }
+        }
+
+        int GetAvailableSpawnPoint()
+        {
+            for (int i = 0; i < usedSpawnPoints.Length; i++)
+            {
+                if (!usedSpawnPoints[i])
+                    return i;
+            }
+            return -1;
+        }
+
+        public bool AllPlayersReady()
+        {
+            if (lobbyPlayers.Count == 0) return false;
+            
+            foreach (var player in lobbyPlayers)
+            {
+                if (!player.isReady)
+                    return false;
+            }
+            return true;
+        }
+
+        public int GetReadyPlayerCount()
+        {
+            int count = 0;
+            foreach (var player in lobbyPlayers)
+            {
+                if (player.isReady)
+                    count++;
+            }
+            return count;
+        }
+
+        public void OnStartClicked()
+        {
+            if (!isServer) return; // HOST ONLY
+
+            if (!AllPlayersReady())
+            {
+                Debug.Log("Not all players are ready!");
+                return;
+            }
+
+            Debug.Log("Host clicked start! Starting countdown...");
+            
+            // Start countdown instead of immediate start
+            if (LobbyCountdown.Instance != null)
+            {
+                LobbyCountdown.Instance.StartCountdown();
+            }
+            else
+            {
+                // Fallback: start immediately if countdown system not available
+                StartGame();
+            }
+        }
+
+        [Server]
+        public void StartGame()
+        {
+            Debug.Log("Starting game!");
+            var networkManager = NetworkManager.singleton as CustomNetworkManager;
+            if (networkManager != null)
+            {
+                // Set the selected map scene
+                if (availableMaps != null && availableMaps.Length > selectedMapIndex && availableMaps[selectedMapIndex] != null)
+                {
+                    networkManager.SetGameScene(availableMaps[selectedMapIndex].sceneName);
+                }
+                
+                networkManager.LoadGameScene();
+            }
+        }
+
+        public void OnReadyClicked()
+        {
+            if (NetworkClient.localPlayer != null)
+            {
+                NetworkClient.localPlayer.GetComponent<LobbyPlayer>()?.CmdSetReady();
+                
+                // Check if we should start countdown
+                if (isServer && LobbyCountdown.Instance != null)
+                {
+                    LobbyCountdown.Instance.OnPlayerReadinessChanged(this);
+                }
+            }
+        }
+
+        public MapData GetSelectedMap()
+        {
+            if (availableMaps != null && availableMaps.Length > selectedMapIndex)
+            {
+                return availableMaps[selectedMapIndex];
+            }
+            return null;
+        }
+
+        public List<LobbyPlayer> GetLobbyPlayers()
+        {
+            return lobbyPlayers;
         }
     }
 }

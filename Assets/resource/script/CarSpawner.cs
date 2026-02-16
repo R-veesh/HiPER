@@ -1,26 +1,30 @@
 using Mirror;
 using UnityEngine;
+using resource.LobbyScene;
 
-public class CarSpawner : NetworkBehaviour
+namespace resource.script
 {
-    public GameObject[] realCars;
-    public Transform[] spawnPoints;
-
-    public override void OnStartServer()
+    public class CarSpawner : NetworkBehaviour
     {
-        int i = 0;
-        foreach (var conn in NetworkServer.connections.Values)
+        public GameObject[] realCars;
+        public Transform[] spawnPoints;
+
+        public override void OnStartServer()
         {
-            var lobbyPlayer = conn.identity.GetComponent<LobbyPlayer>();
+            int i = 0;
+            foreach (var conn in NetworkServer.connections.Values)
+            {
+                var lobbyPlayer = conn.identity.GetComponent<LobbyPlayer>();
 
-            GameObject car = Instantiate(
-                realCars[lobbyPlayer.selectedCarIndex],
-                spawnPoints[i].position,
-                spawnPoints[i].rotation
-            );
+                GameObject car = Instantiate(
+                    realCars[lobbyPlayer.selectedCarIndex],
+                    spawnPoints[i].position,
+                    spawnPoints[i].rotation
+                );
 
-            NetworkServer.Spawn(car, conn);
-            i++;
+                NetworkServer.Spawn(car, conn);
+                i++;
+            }
         }
     }
 }
