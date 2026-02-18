@@ -33,6 +33,11 @@ namespace resource.MainMenuScene
                 Debug.Log("[CustomNetworkManager] Setting playerPrefab to lobbyPlayerPrefab");
                 playerPrefab = lobbyPlayerPrefab;
             }
+            else if (lobbyPlayerPrefab == null && playerPrefab != null)
+            {
+                Debug.Log("[CustomNetworkManager] Setting lobbyPlayerPrefab to playerPrefab");
+                lobbyPlayerPrefab = playerPrefab;
+            }
             
             if (playerPrefab == null)
             {
@@ -123,6 +128,13 @@ namespace resource.MainMenuScene
         {
             Debug.Log($"CustomNetworkManager: Adding player for connection {conn.connectionId}");
 
+            // Check if player already exists for this connection
+            if (conn.identity != null)
+            {
+                Debug.LogWarning($"Player already exists for connection {conn.connectionId}, skipping.");
+                return;
+            }
+
             // Spawn LobbyPlayer prefab for this connection
             if (lobbyPlayerPrefab != null)
             {
@@ -144,8 +156,10 @@ namespace resource.MainMenuScene
             }
             else
             {
-                Debug.LogError("LobbyPlayer prefab not assigned!");
-                base.OnServerAddPlayer(conn);
+                Debug.LogError("LobbyPlayer prefab not assigned! Cannot create player.");
+                // Don't call base.OnServerAddPlayer here - it would create a duplicate
+                // The connection will remain without a player object
+                conn.Disconnect();
             }
         }
 
