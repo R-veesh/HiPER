@@ -119,12 +119,15 @@ namespace resource.LobbyScene
         {
             if (!autoStartEnabled) return;
             
-            // Only start if all players are ready and countdown isn't running
-            if (lobbyManager.AllPlayersReady() && !isCountingDown)
+            int playerCount = lobbyManager.connectedPlayerCount;
+            int minPlayers = lobbyManager.minPlayers;
+            
+            // Only start if we have minimum players, all are ready, and countdown isn't running
+            if (playerCount >= minPlayers && lobbyManager.AllPlayersReady() && !isCountingDown)
             {
                 StartCountdown();
             }
-            else if (!lobbyManager.AllPlayersReady() && isCountingDown)
+            else if ((!lobbyManager.AllPlayersReady() || playerCount < minPlayers) && isCountingDown)
             {
                 StopCountdown();
             }

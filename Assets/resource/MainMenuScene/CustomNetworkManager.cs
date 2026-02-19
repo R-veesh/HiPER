@@ -17,14 +17,15 @@ namespace resource.MainMenuScene
         public GameObject lobbyPlayerPrefab;
 
         private LobbyManager lobbyManager;
+        private bool playerAddRequested = false;
 
         void Start()
         {
-            // Ensure auto create player is enabled
-            if (!autoCreatePlayer)
+            // DISABLE auto create player - we handle it manually to prevent duplicates
+            if (autoCreatePlayer)
             {
-                Debug.LogWarning("[CustomNetworkManager] autoCreatePlayer was disabled! Enabling it now.");
-                autoCreatePlayer = true;
+                Debug.Log("[CustomNetworkManager] Disabling autoCreatePlayer to prevent duplicate player creation");
+                autoCreatePlayer = false;
             }
             
             // CRITICAL: Check if player prefab is registered
@@ -62,16 +63,32 @@ namespace resource.MainMenuScene
         {
             Debug.Log("HOST button pressed – starting host and loading LobbyScene");
             base.OnStartHost();
+            
+            // Ensure PlayerDataContainer exists
+            EnsurePlayerDataContainer();
+            
             // Automatically transition to LobbyScene after starting host
             ServerChangeScene(lobbyScene);
+        }
+        
+        void EnsurePlayerDataContainer()
+        {
+            // Check if PlayerDataContainer already exists
+            var existingContainer = FindObjectOfType<PlayerDataContainer>();
+            if (existingContainer == null)
+            {
+                // Create a new GameObject with PlayerDataContainer
+                GameObject containerObj = new GameObject("PlayerDataContainer");
+                containerObj.AddComponent<PlayerDataContainer>();
+                Debug.Log("[CustomNetworkManager] Created PlayerDataContainer");
+            }
         }
 
         public override void OnClientConnect()
         {
             Debug.Log("[CustomNetworkManager] Client connected successfully");
             
-            // Add player when client connects (only if autoCreatePlayer is disabled)
-            // Mirror will auto-create player if autoCreatePlayer is true
+            // Call base but don't add player yet - wait for scene to be ready
             base.OnClientConnect();
             
             Debug.Log($"[CustomNetworkManager] Local player: {(NetworkClient.localPlayer != null ? "EXISTS" : "NULL")}");
@@ -88,7 +105,14 @@ namespace resource.MainMenuScene
             base.OnClientSceneChanged();
             Debug.Log($"[CustomNetworkManager] Client scene changed. Local player: {(NetworkClient.localPlayer != null ? "EXISTS" : "NULL")}");
             
-            if (NetworkClient.localPlayer == null)
+            // Manually add player if autoCreatePlayer is disabled and we haven't requested yet
+            if (NetworkClient.localPlayer == null && NetworkClient.ready && !playerAddRequested)
+            {
+                playerAddRequested = true;
+                Debug.Log("[CustomNetworkManager] Requesting player spawn...");
+                NetworkClient.AddPlayer(); // Use modern Mirror API
+            }
+            else if (NetworkClient.localPlayer == null)
             {
                 Debug.LogWarning("[CustomNetworkManager] WARNING: Local player is null after scene change!");
                 
@@ -207,32 +231,43 @@ namespace resource.MainMenuScene
         {
             base.OnServerSceneChanged(sceneName);
             
+            Debug.Log($"[CustomNetworkManager] Server scene changed to: {sceneName}");
+            
             // Find lobby manager when in lobby scene
             if (sceneName == lobbyScene)
             {
                 lobbyManager = FindObjectOfType<LobbyManager>();
                 if (lobbyManager != null)
                 {
-                    Debug.Log("LobbyManager found and connected");
+                    Debug.Log("[CustomNetworkManager] LobbyManager found and connected");
                 }
                 else
                 {
-                    Debug.LogWarning("LobbyManager not found in LobbyScene!");
+                    Debug.LogWarning("[CustomNetworkManager] LobbyManager not found in LobbyScene!");
                 }
             }
-            // Handle game scene loading
-            else if (sceneName == selectedGameScene)
+            // Handle game scene loading - check if it's ANY game scene
+            else if (sceneName != mainMenuScene && sceneName != lobbyScene)
             {
-                Debug.Log($"Game scene {sceneName} loaded - initializing game");
-                var gameSpawnManager = FindObjectOfType<GameSpawnManager>();
-                if (gameSpawnManager != null)
-                {
-                    gameSpawnManager.OnSceneLoaded();
-                }
-                else
-                {
-                    Debug.LogWarning($"GameSpawnManager not found in {sceneName}!");
-                }
+                Debug.Log($"[CustomNetworkManager] Game scene {sceneName} loaded - initializing game");
+                // Wait a frame for all clients to be ready
+                StartCoroutine(SpawnCarsInGameScene());
+            }
+        }
+        
+        System.Collections.IEnumerator SpawnCarsInGameScene()
+        {
+            // Wait for all players to finish loading
+            yield return new WaitForSeconds(0.5f);
+            
+            var gameSpawnManager = FindObjectOfType<GameSpawnManager>();
+            if (gameSpawnManager != null)
+            {
+                gameSpawnManager.OnSceneLoaded();
+            }
+            else
+            {
+                Debug.LogWarning("[CustomNetworkManager] GameSpawnManager not found in game scene!");
             }
         }
 
@@ -251,9 +286,21 @@ namespace resource.MainMenuScene
             }
         }
 
+        public override void OnClientDisconnect()
+        {
+            // Reset flag so we can add player again on next connection
+            playerAddRequested = false;
+            Debug.Log("[CustomNetworkManager] Client disconnected, reset playerAddRequested flag");
+            
+            base.OnClientDisconnect();
+        }
+
         public void ReturnToMainMenu()
         {
             Debug.Log("Returning to MainMenuScene");
+            
+            // Reset flag
+            playerAddRequested = false;
             
             // Stop all network activity
             if (NetworkServer.active)

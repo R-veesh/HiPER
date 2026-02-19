@@ -173,8 +173,17 @@ namespace resource.LobbyScene
 
         void SetupButtonListeners()
         {
+            Debug.Log($"[LobbyUI] SetupButtonListeners - readyButton: {(readyButton != null ? "ASSIGNED" : "NULL")}");
+            
             if (readyButton != null)
+            {
                 readyButton.onClick.AddListener(OnReadyClicked);
+                Debug.Log("[LobbyUI] Ready button listener added");
+            }
+            else
+            {
+                Debug.LogError("[LobbyUI] readyButton is NULL! Assign it in Inspector.");
+            }
             
             if (startButton != null)
                 startButton.onClick.AddListener(OnStartClicked);
@@ -294,7 +303,7 @@ namespace resource.LobbyScene
                 statusPanelBackground.color = allReady ? allReadyColor : waitingColor;
             }
 
-            if (statusText != null)
+            if (statusText != null && lobbyManager != null)
             {
                 if (countdownManager != null && countdownManager.isCountingDown)
                 {
@@ -308,7 +317,8 @@ namespace resource.LobbyScene
                 }
                 else
                 {
-                    statusText.text = "Waiting for players...";
+                    // Show specific status message
+                    statusText.text = lobbyManager.GetReadyStatusMessage();
                 }
             }
         }
@@ -332,6 +342,9 @@ namespace resource.LobbyScene
         void OnReadyClicked()
         {
             Debug.Log("[LobbyUI] Ready button clicked");
+            Debug.Log($"[LobbyUI] localLobbyPlayer: {(localLobbyPlayer != null ? localLobbyPlayer.playerName : "NULL")}");
+            Debug.Log($"[LobbyUI] lobbyManager: {(lobbyManager != null ? "ASSIGNED" : "NULL")}");
+            Debug.Log($"[LobbyUI] NetworkClient.localPlayer: {(NetworkClient.localPlayer != null ? NetworkClient.localPlayer.name : "NULL")}");
             
             // Try to find player if null
             if (localLobbyPlayer == null)

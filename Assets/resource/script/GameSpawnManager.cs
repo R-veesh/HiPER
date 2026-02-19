@@ -110,22 +110,27 @@ namespace resource.script
             Transform spawnPoint = spawnPoints[spawnIndex];
             nextSpawnIndex++;
             
-            // Spawn the car
-            GameObject car = Instantiate(carPrefabs[carIndex], spawnPoint.position, spawnPoint.rotation);
-            NetworkServer.Spawn(car);
-            
-            // Find the connection for this player
+            // Find the connection for this player first
             NetworkConnectionToClient conn = null;
-            if (NetworkServer.connections.TryGetValue(playerData.connectionId, out conn))
+            NetworkServer.connections.TryGetValue(playerData.connectionId, out conn);
+            
+            // Spawn the car with authority if connection exists
+            GameObject car = Instantiate(carPrefabs[carIndex], spawnPoint.position, spawnPoint.rotation);
+            if (conn != null)
             {
-                // Assign car to player
-                AssignCarToPlayer(car, conn);
-                Debug.Log($"[GameSpawnManager] Spawned car {carPrefabs[carIndex].name} for player {playerData.playerName} at spawn point {spawnIndex}");
+                // Spawn with client authority
+                NetworkServer.Spawn(car, conn);
+                Debug.Log($"[GameSpawnManager] Spawned car {carPrefabs[carIndex].name} for player {playerData.playerName} at spawn point {spawnIndex} with authority");
             }
             else
             {
+                // Spawn without authority
+                NetworkServer.Spawn(car);
                 Debug.LogWarning($"[GameSpawnManager] Connection {playerData.connectionId} not found for player {playerData.playerName}. Car spawned without ownership.");
             }
+            
+            // Add car control component
+            AssignCarControl(car, conn);
             
             spawnedCars.Add(car);
         }
@@ -167,20 +172,20 @@ namespace resource.script
             Transform spawnPoint = spawnPoints[spawnIndex];
             nextSpawnIndex++;
             
-            // Spawn the car
+            // Spawn the car with client authority
             GameObject car = Instantiate(carPrefabs[carIndex], spawnPoint.position, spawnPoint.rotation);
-            NetworkServer.Spawn(car);
+            NetworkServer.Spawn(car, conn);
             
-            // Assign car to player
-            AssignCarToPlayer(car, conn);
+            // Add car control component
+            AssignCarControl(car, conn);
             
             spawnedCars.Add(car);
             
-            Debug.Log($"[GameSpawnManager] Spawned car {carPrefabs[carIndex].name} for {playerName} at spawn point {spawnIndex}");
+            Debug.Log($"[GameSpawnManager] Spawned car {carPrefabs[carIndex].name} for {playerName} at spawn point {spawnIndex} with authority");
         }
         
         [Server]
-        void AssignCarToPlayer(GameObject car, NetworkConnectionToClient conn)
+        void AssignCarControl(GameObject car, NetworkConnectionToClient conn)
         {
             // Add car control component if needed
             var carController = car.GetComponent<CarPlayer>();
@@ -189,18 +194,15 @@ namespace resource.script
                 carController = car.AddComponent<CarPlayer>();
             }
             
-            // Set ownership
+            // Verify NetworkIdentity exists
             var networkIdentity = car.GetComponent<NetworkIdentity>();
-            if (networkIdentity != null)
-            {
-                networkIdentity.AssignClientAuthority(conn);
-            }
-            else
+            if (networkIdentity == null)
             {
                 Debug.LogError($"[GameSpawnManager] Car prefab {car.name} is missing NetworkIdentity component!");
+                return;
             }
             
-            Debug.Log($"[GameSpawnManager] Assigned car authority to connection {conn.connectionId}");
+            Debug.Log($"[GameSpawnManager] Car control assigned to connection {(conn != null ? conn.connectionId.ToString() : "null")}");
         }
         
         public override void OnStopServer()
@@ -222,10 +224,50 @@ namespace resource.script
         [Server]
         public void OnSceneLoaded()
         {
-            Debug.Log("[GameSpawnManager] MainGameScene loaded - spawning cars for players");
+            Debug.Log("[GameSpawnManager] Game scene loaded - spawning cars for players");
             
-            // Wait a frame for all players to be ready
-            Invoke(nameof(SpawnCarsFromSavedData), 0.1f);
+            // Wait for clients to finish loading the scene
+            StartCoroutine(WaitAndSpawnCars());
+        }
+        
+        System.Collections.IEnumerator WaitAndSpawnCars()
+        {
+            // Wait for all connected clients to be ready
+            float timeout = 10f;
+            float elapsed = 0f;
+            bool allClientsReady = false;
+            
+            while (!allClientsReady && elapsed < timeout)
+            {
+                allClientsReady = true;
+                
+                // Check if all connections are ready
+                foreach (var conn in NetworkServer.connections.Values)
+                {
+                    if (conn != null && !conn.isReady)
+                    {
+                        allClientsReady = false;
+                        break;
+                    }
+                }
+                
+                if (!allClientsReady)
+                {
+                    elapsed += 0.1f;
+                    yield return new WaitForSeconds(0.1f);
+                }
+            }
+            
+            if (allClientsReady)
+            {
+                Debug.Log($"[GameSpawnManager] All clients ready after {elapsed:F1}s, spawning cars...");
+                SpawnCarsFromSavedData();
+            }
+            else
+            {
+                Debug.LogWarning($"[GameSpawnManager] Timeout waiting for clients! Spawning cars anyway...");
+                SpawnCarsFromSavedData();
+            }
         }
     }
 }

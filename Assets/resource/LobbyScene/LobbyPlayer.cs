@@ -30,18 +30,13 @@ namespace resource.LobbyScene
         {
             Debug.Log($"[LobbyPlayer] OnStartClient called for {playerName} - isLocalPlayer: {isLocalPlayer}, isServer: {isServer}");
             
-            // Delay car spawn to ensure network is ready
+            // Only server spawns cars - clients will see them via network sync
             if (isServer)
             {
-                // Server spawns immediately
+                // Server spawns immediately for ALL players (including remote ones)
                 SpawnPreviewCar();
             }
-            else if (isLocalPlayer)
-            {
-                // Local client spawns with small delay
-                Invoke(nameof(SpawnPreviewCar), 0.5f);
-            }
-            // Remote players will get synced car from server
+            // Clients do NOT spawn cars locally - they receive them from server
         }
 
         public void SetPlatePosition(Transform plateTransform, int index)
@@ -60,8 +55,8 @@ namespace resource.LobbyScene
                 RpcUpdatePosition(plateTransform.position, plateTransform.rotation);
             }
             
-            // Spawn car at new position
-            if (isServer || isLocalPlayer)
+            // Spawn car at new position (server only)
+            if (isServer)
             {
                 SpawnPreviewCar();
             }
@@ -121,28 +116,26 @@ namespace resource.LobbyScene
                 return;
             }
             
+            // Only spawn on server - clients will see it via network sync
+            if (!isServer) return;
+            
             // Position car on the plate (slightly above)
             Vector3 carPosition = transform.position + Vector3.up * 0.1f;
             
-            // Only spawn preview on server - clients will see it via network sync
-            if (isServer)
-            {
-                // Server spawns networked car
-                _previewCar = Instantiate(carPrefabs[selectedCarIndex], carPosition, transform.rotation);
-                NetworkServer.Spawn(_previewCar);
-                Debug.Log($"[SERVER] Spawned car preview: {carPrefabs[selectedCarIndex].name} for {playerName}");
-            }
-            // Client spawns local preview only if they are the local player (for instant feedback)
-            else if (isLocalPlayer)
-            {
-                _previewCar = Instantiate(carPrefabs[selectedCarIndex], carPosition, transform.rotation);
-                Debug.Log($"[CLIENT] Spawned local car preview: {carPrefabs[selectedCarIndex].name}");
-            }
+            // Server spawns networked car
+            _previewCar = Instantiate(carPrefabs[selectedCarIndex], carPosition, transform.rotation);
+            NetworkServer.Spawn(_previewCar);
+            Debug.Log($"[SERVER] Spawned car preview: {carPrefabs[selectedCarIndex].name} for {playerName}");
         }
 
-        void OnCarChanged(int _, int newIndex)
+        void OnCarChanged(int oldIndex, int newIndex)
         {
-            SpawnPreviewCar();
+            Debug.Log($"[LobbyPlayer] Car changed from {oldIndex} to {newIndex} for {playerName}");
+            // Only server spawns cars
+            if (isServer)
+            {
+                SpawnPreviewCar();
+            }
         }
 
         void OnReadyStateChanged(bool _, bool newState)

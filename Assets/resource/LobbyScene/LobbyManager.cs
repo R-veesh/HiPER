@@ -79,6 +79,54 @@ namespace resource.LobbyScene
             InitializeMapVoting();
         }
 
+        void Update()
+        {
+            // Periodic check to sync players that might have been missed
+            if (isServer && lobbyPlayers.Count == 0)
+            {
+                SyncMissingPlayers();
+            }
+        }
+
+        void SyncMissingPlayers()
+        {
+            Debug.Log("[LobbyManager] Checking for missing players...");
+            
+            // Find all LobbyPlayers in the scene
+            var allPlayers = FindObjectsOfType<LobbyPlayer>();
+            Debug.Log($"[LobbyManager] Found {allPlayers.Length} LobbyPlayers in scene");
+            
+            foreach (var player in allPlayers)
+            {
+                if (!lobbyPlayers.Contains(player))
+                {
+                    Debug.Log($"[LobbyManager] Adding missing player: {player.playerName}");
+                    
+                    // Find available spawn point
+                    int spawnIndex = GetAvailableSpawnPoint();
+                    if (spawnIndex == -1)
+                    {
+                        Debug.LogError("[LobbyManager] No available spawn points for missing player!");
+                        continue;
+                    }
+                    
+                    // Assign spawn point
+                    player.SetPlatePosition(spawnPoints[spawnIndex], spawnIndex);
+                    player.transform.position = spawnPoints[spawnIndex].position;
+                    player.transform.rotation = spawnPoints[spawnIndex].rotation;
+                    
+                    // Mark spawn point as used
+                    usedSpawnPoints[spawnIndex] = true;
+                    
+                    // Add to list
+                    lobbyPlayers.Add(player);
+                    connectedPlayerCount = lobbyPlayers.Count;
+                    
+                    Debug.Log($"[LobbyManager] ✓ Player {player.playerName} synced. Total: {connectedPlayerCount}");
+                }
+            }
+        }
+
         void InitializeMapVoting()
         {
             mapVoteCounts.Clear();
@@ -90,21 +138,26 @@ namespace resource.LobbyScene
 
         public void OnPlayerAdded(NetworkConnectionToClient conn)
         {
-            Debug.Log($"Adding player for connection {conn.connectionId}");
+            Debug.Log($"[LobbyManager] OnPlayerAdded called for connection {conn.connectionId}");
+            Debug.Log($"[LobbyManager] Current player count before add: {lobbyPlayers.Count}");
 
             if (conn.identity == null)
             {
-                Debug.LogError($"Connection {conn.connectionId} has no identity!");
+                Debug.LogError($"[LobbyManager] Connection {conn.connectionId} has no identity!");
                 return;
             }
+            
+            Debug.Log($"[LobbyManager] Connection identity: {conn.identity.gameObject.name}");
 
             // Find available spawn point
             int spawnIndex = GetAvailableSpawnPoint();
             if (spawnIndex == -1)
             {
-                Debug.LogError("No available spawn points!");
+                Debug.LogError("[LobbyManager] No available spawn points!");
                 return;
             }
+            
+            Debug.Log($"[LobbyManager] Assigning to spawn point {spawnIndex}");
 
             // Get the already spawned player (spawned by CustomNetworkManager)
             GameObject player = conn.identity.gameObject;
@@ -112,9 +165,17 @@ namespace resource.LobbyScene
             
             if (lobbyPlayer == null)
             {
-                Debug.LogError($"Player object missing LobbyPlayer component!");
+                Debug.LogError($"[LobbyManager] Player object missing LobbyPlayer component!");
+                Debug.Log($"[LobbyManager] Player object components: ");
+                var components = player.GetComponents<Component>();
+                foreach (var comp in components)
+                {
+                    Debug.Log($"  - {comp.GetType().Name}");
+                }
                 return;
             }
+            
+            Debug.Log($"[LobbyManager] Found LobbyPlayer: {lobbyPlayer.playerName}");
 
             // Assign spawn point to player
             lobbyPlayer.SetPlatePosition(spawnPoints[spawnIndex], spawnIndex);
@@ -125,10 +186,23 @@ namespace resource.LobbyScene
 
             // Mark spawn point as used
             usedSpawnPoints[spawnIndex] = true;
+            
+            // Add to list and update count
+            Debug.Log($"[LobbyManager] Adding player to lobbyPlayers list. Current count: {lobbyPlayers.Count}");
             lobbyPlayers.Add(lobbyPlayer);
             connectedPlayerCount = lobbyPlayers.Count;
-
-            Debug.Log($"Player {conn.connectionId} assigned to plate {spawnIndex + 1}");
+            
+            Debug.Log($"[LobbyManager] Player {conn.connectionId} assigned to plate {spawnIndex + 1}. Total players: {connectedPlayerCount}");
+            
+            // Verify the player was added
+            if (lobbyPlayers.Contains(lobbyPlayer))
+            {
+                Debug.Log($"[LobbyManager] ✓ Player successfully added to list");
+            }
+            else
+            {
+                Debug.LogError($"[LobbyManager] ✗ Player was NOT added to list!");
+            }
         }
 
         public void OnPlayerRemoved(NetworkConnectionToClient conn)
@@ -225,16 +299,56 @@ namespace resource.LobbyScene
             return -1;
         }
 
+        [Header("Player Requirements")]
+        [Tooltip("Minimum players required to start (1-4)")]
+        public int minPlayers = 2;
+        [Tooltip("Maximum players allowed (1-4)")]
+        public int maxPlayers = 4;
+
         public bool AllPlayersReady()
         {
-            if (lobbyPlayers.Count == 0) return false;
+            // Must have at least minPlayers to start
+            if (lobbyPlayers.Count < minPlayers)
+            {
+                return false;
+            }
             
+            // Must have at most maxPlayers
+            if (lobbyPlayers.Count > maxPlayers)
+            {
+                return false;
+            }
+            
+            // All connected players must be ready
             foreach (var player in lobbyPlayers)
             {
                 if (!player.isReady)
                     return false;
             }
             return true;
+        }
+
+        public string GetReadyStatusMessage()
+        {
+            int playerCount = lobbyPlayers.Count;
+            int readyCount = GetReadyPlayerCount();
+            
+            if (playerCount < minPlayers)
+            {
+                return $"Need {minPlayers - playerCount} more player(s)";
+            }
+            else if (playerCount > maxPlayers)
+            {
+                return $"Too many players (max {maxPlayers})";
+            }
+            else if (readyCount < playerCount)
+            {
+                return $"Waiting for {playerCount - readyCount} player(s) to ready";
+            }
+            else
+            {
+                return "All players ready!";
+            }
         }
 
         public int GetReadyPlayerCount()
@@ -254,11 +368,12 @@ namespace resource.LobbyScene
 
             if (!AllPlayersReady())
             {
-                Debug.Log("Not all players are ready!");
+                string statusMessage = GetReadyStatusMessage();
+                Debug.Log($"[LobbyManager] Cannot start: {statusMessage}");
                 return;
             }
 
-            Debug.Log("Host clicked start! Starting countdown...");
+            Debug.Log($"[LobbyManager] Host clicked start! {lobbyPlayers.Count} players ready. Starting countdown...");
             
             // Start countdown instead of immediate start
             if (LobbyCountdown.Instance != null)
