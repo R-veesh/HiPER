@@ -24,7 +24,7 @@ namespace resource.LobbyScene
         [Header("Player Management")]
         [SyncVar] public int connectedPlayerCount = 0;
 
-        private List<LobbyPlayer> lobbyPlayers = new List<LobbyPlayer>();
+        public List<LobbyPlayer> lobbyPlayers = new List<LobbyPlayer>();
         private bool[] usedSpawnPoints;
         private Dictionary<int, int> mapVoteCounts = new Dictionary<int, int>();
 
@@ -301,7 +301,7 @@ namespace resource.LobbyScene
 
         [Header("Player Requirements")]
         [Tooltip("Minimum players required to start (1-4)")]
-        public int minPlayers = 2;
+        public int minPlayers = 1;
         [Tooltip("Maximum players allowed (1-4)")]
         public int maxPlayers = 4;
 

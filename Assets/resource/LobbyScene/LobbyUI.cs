@@ -65,6 +65,8 @@ namespace resource.LobbyScene
             lobbyManager = LobbyManager.Instance;
             countdownManager = LobbyCountdown.Instance;
             
+            Debug.Log($"[LobbyUI] mapSelectionPanel: {(mapSelectionPanel != null ? "ASSIGNED" : "NULL")}");
+            
             if (lobbyManager == null)
             {
                 Debug.LogError("[LobbyUI] LobbyManager not found!");
@@ -248,6 +250,8 @@ namespace resource.LobbyScene
                 bool showStart = isHost && allReady && 
                     (countdownManager == null || !countdownManager.isCountingDown);
                 
+                Debug.Log($"[LobbyUI] StartButton - isHost: {isHost}, allReady: {allReady}, playerCount: {lobbyManager.lobbyPlayers.Count}, showStart: {showStart}");
+                
                 ShowStartButton(showStart);
             }
         }
@@ -328,6 +332,7 @@ namespace resource.LobbyScene
             if (startButton != null)
             {
                 startButton.gameObject.SetActive(show);
+                startButton.interactable = show;
             }
         }
 

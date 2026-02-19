@@ -37,6 +37,7 @@ namespace resource.LobbyScene
         {
             lobbyManager = LobbyManager.Instance;
             SetupButtonListeners();
+            Debug.Log($"[MapSelectionPanel] Start - isServer: {NetworkServer.active}, isClient: {NetworkClient.active}, GameObject active: {gameObject.activeInHierarchy}");
         }
 
         void Update()
