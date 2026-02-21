@@ -138,11 +138,23 @@ namespace resource.LobbyScene
             }
         }
 
-        void OnReadyStateChanged(bool _, bool newState)
+        void OnReadyStateChanged(bool oldState, bool newState)
         {
-            Debug.Log($"{playerName} ready state: {newState}");
-            // Update UI here if needed
+            Debug.Log($"[LobbyPlayer] {playerName} ready state changed: {oldState} -> {newState}");
+            
+            // Notify LobbyManager to update ready counts
+            if (isServer && LobbyManager.Instance != null)
+            {
+                LobbyManager.Instance.UpdatePlayerReadyState(this);
+            }
+            
+            // Trigger UI update on all clients
+            if (LobbyUI.Instance != null)
+            {
+                LobbyUI.Instance.UpdateUI();
+            }
         }
+
 
         [Command]
         public void CmdNextCar()
@@ -168,8 +180,15 @@ namespace resource.LobbyScene
         public void CmdSetReady()
         {
             isReady = !isReady;
-            Debug.Log($"{playerName} set ready to: {isReady}");
+            Debug.Log($"[LobbyPlayer] {playerName} set ready to: {isReady} (server: {isServer})");
+            
+            // Notify LobbyManager immediately on server
+            if (isServer && LobbyManager.Instance != null)
+            {
+                LobbyManager.Instance.UpdatePlayerReadyState(this);
+            }
         }
+
 
         [Command]
         public void CmdSetPlayerName(string newName)

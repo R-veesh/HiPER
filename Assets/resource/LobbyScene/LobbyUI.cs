@@ -9,6 +9,8 @@ namespace resource.LobbyScene
 {
     public class LobbyUI : MonoBehaviour
     {
+        public static LobbyUI Instance;
+        
         [Header("Player Plates")]
         public PlayerPlateUI[] playerPlates; // 4 plates for 4 players
         public Transform platesContainer;
@@ -53,6 +55,14 @@ namespace resource.LobbyScene
         private LobbyCountdown countdownManager;
         private bool wasReady = false;
 
+        void Awake()
+        {
+            if (Instance == null)
+                Instance = this;
+            else
+                Destroy(gameObject);
+        }
+        
         void Start()
         {
             SetupButtonListeners();
@@ -200,7 +210,7 @@ namespace resource.LobbyScene
                 leaveButton.onClick.AddListener(OnLeaveClicked);
         }
 
-        void UpdateUI()
+        public void UpdateUI()
         {
             if (localLobbyPlayer == null) return;
 
@@ -231,11 +241,11 @@ namespace resource.LobbyScene
             if (prevCarButton != null)
                 prevCarButton.interactable = canSelectCar;
 
-            // Update player count
+            // Update player count - use accurate counts from NetworkServer if available
             if (playerCountText != null && lobbyManager != null)
             {
-                int readyCount = lobbyManager.GetReadyPlayerCount();
-                int totalCount = lobbyManager.connectedPlayerCount;
+                int readyCount = lobbyManager.readyPlayerCount;
+                int totalCount = NetworkServer.active ? NetworkServer.connections.Count : lobbyManager.connectedPlayerCount;
                 playerCountText.text = $"Players: {readyCount}/{totalCount} Ready";
             }
 
@@ -246,11 +256,12 @@ namespace resource.LobbyScene
                 UpdateStatusPanel(allReady);
                 
                 // START button only for HOST
-                bool isHost = NetworkServer.active && NetworkClient.active;
+                bool isHost = NetworkServer.active;
+                int actualPlayerCount = NetworkServer.active ? NetworkServer.connections.Count : lobbyManager.connectedPlayerCount;
                 bool showStart = isHost && allReady && 
                     (countdownManager == null || !countdownManager.isCountingDown);
                 
-                Debug.Log($"[LobbyUI] StartButton - isHost: {isHost}, allReady: {allReady}, playerCount: {lobbyManager.lobbyPlayers.Count}, showStart: {showStart}");
+                Debug.Log($"[LobbyUI] StartButton - isHost: {isHost}, allReady: {allReady}, playerCount: {actualPlayerCount}, lobbyPlayers.Count: {lobbyManager.lobbyPlayers.Count}, readyCount: {lobbyManager.readyPlayerCount}, showStart: {showStart}");
                 
                 ShowStartButton(showStart);
             }

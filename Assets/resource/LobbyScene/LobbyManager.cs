@@ -23,8 +23,13 @@ namespace resource.LobbyScene
 
         [Header("Player Management")]
         [SyncVar] public int connectedPlayerCount = 0;
+        [SyncVar] public int readyPlayerCount = 0;
 
         public List<LobbyPlayer> lobbyPlayers = new List<LobbyPlayer>();
+        
+        // SyncList to track which players are ready across network
+        private readonly SyncList<bool> playerReadyStates = new SyncList<bool>();
+
         private bool[] usedSpawnPoints;
         private Dictionary<int, int> mapVoteCounts = new Dictionary<int, int>();
 
@@ -77,6 +82,27 @@ namespace resource.LobbyScene
             base.OnStartServer();
             Debug.Log("LobbyManager started on server");
             InitializeMapVoting();
+            
+            // Subscribe to SyncList changes
+            playerReadyStates.Callback += OnReadyStatesChanged;
+        }
+        
+        void OnReadyStatesChanged(SyncList<bool>.Operation op, int itemIndex, bool oldItem, bool newItem)
+        {
+            Debug.Log($"[LobbyManager] Ready states changed: {op} at index {itemIndex}, value: {newItem}");
+            UpdateReadyCount();
+        }
+        
+        [Server]
+        void UpdateReadyCount()
+        {
+            int readyCount = 0;
+            foreach (var ready in playerReadyStates)
+            {
+                if (ready) readyCount++;
+            }
+            readyPlayerCount = readyCount;
+            Debug.Log($"[LobbyManager] Updated ready count: {readyPlayerCount}/{connectedPlayerCount}");
         }
 
         void Update()
@@ -86,6 +112,49 @@ namespace resource.LobbyScene
             {
                 SyncMissingPlayers();
             }
+            
+            // Server periodically validates player counts
+            if (isServer && Time.frameCount % 60 == 0) // Every 60 frames
+            {
+                ValidatePlayerCounts();
+            }
+        }
+        
+        [Server]
+        void ValidatePlayerCounts()
+        {
+            // Ensure player counts match actual connections
+            int actualConnections = NetworkServer.connections.Count;
+            if (actualConnections != connectedPlayerCount)
+            {
+                Debug.LogWarning($"[LobbyManager] Player count mismatch! SyncVar: {connectedPlayerCount}, Actual: {actualConnections}. Resyncing...");
+                ResyncPlayerList();
+            }
+        }
+        
+        [Server]
+        void ResyncPlayerList()
+        {
+            lobbyPlayers.Clear();
+            playerReadyStates.Clear();
+            
+            foreach (var conn in NetworkServer.connections.Values)
+            {
+                if (conn?.identity != null)
+                {
+                    var lobbyPlayer = conn.identity.GetComponent<LobbyPlayer>();
+                    if (lobbyPlayer != null)
+                    {
+                        lobbyPlayers.Add(lobbyPlayer);
+                        playerReadyStates.Add(lobbyPlayer.isReady);
+                    }
+                }
+            }
+            
+            connectedPlayerCount = lobbyPlayers.Count;
+            UpdateReadyCount();
+            
+            Debug.Log($"[LobbyManager] Resynced {connectedPlayerCount} players");
         }
 
         void SyncMissingPlayers()
@@ -190,7 +259,12 @@ namespace resource.LobbyScene
             // Add to list and update count
             Debug.Log($"[LobbyManager] Adding player to lobbyPlayers list. Current count: {lobbyPlayers.Count}");
             lobbyPlayers.Add(lobbyPlayer);
+            
+            // Add to ready states list
+            playerReadyStates.Add(lobbyPlayer.isReady);
+            
             connectedPlayerCount = lobbyPlayers.Count;
+            UpdateReadyCount();
             
             Debug.Log($"[LobbyManager] Player {conn.connectionId} assigned to plate {spawnIndex + 1}. Total players: {connectedPlayerCount}");
             
@@ -204,6 +278,7 @@ namespace resource.LobbyScene
                 Debug.LogError($"[LobbyManager] ✗ Player was NOT added to list!");
             }
         }
+
 
         public void OnPlayerRemoved(NetworkConnectionToClient conn)
         {
@@ -307,31 +382,57 @@ namespace resource.LobbyScene
 
         public bool AllPlayersReady()
         {
+            // Use actual connection count for more accuracy
+            int actualPlayerCount = isServer ? NetworkServer.connections.Count : connectedPlayerCount;
+            
+            Debug.Log($"[LobbyManager] Checking AllPlayersReady: actualCount={actualPlayerCount}, min={minPlayers}, max={maxPlayers}, readyCount={readyPlayerCount}");
+            
             // Must have at least minPlayers to start
-            if (lobbyPlayers.Count < minPlayers)
+            if (actualPlayerCount < minPlayers)
             {
+                Debug.Log($"[LobbyManager] Not enough players: {actualPlayerCount}/{minPlayers}");
                 return false;
             }
             
             // Must have at most maxPlayers
-            if (lobbyPlayers.Count > maxPlayers)
+            if (actualPlayerCount > maxPlayers)
             {
+                Debug.Log($"[LobbyManager] Too many players: {actualPlayerCount}/{maxPlayers}");
                 return false;
             }
             
             // All connected players must be ready
+            // Check both local list and SyncList for redundancy
+            bool allReady = true;
+            
+            // Check local list
             foreach (var player in lobbyPlayers)
             {
                 if (!player.isReady)
-                    return false;
+                {
+                    Debug.Log($"[LobbyManager] Player {player.playerName} is NOT ready");
+                    allReady = false;
+                    break;
+                }
             }
-            return true;
+            
+            // Also verify ready count matches player count
+            if (readyPlayerCount != actualPlayerCount)
+            {
+                Debug.Log($"[LobbyManager] Ready count mismatch: {readyPlayerCount}/{actualPlayerCount}");
+                allReady = false;
+            }
+            
+            Debug.Log($"[LobbyManager] AllPlayersReady result: {allReady}");
+            return allReady;
         }
 
         public string GetReadyStatusMessage()
         {
-            int playerCount = lobbyPlayers.Count;
-            int readyCount = GetReadyPlayerCount();
+            int playerCount = isServer ? NetworkServer.connections.Count : connectedPlayerCount;
+            int readyCount = readyPlayerCount;
+            
+            Debug.Log($"[LobbyManager] GetReadyStatusMessage: players={playerCount}, ready={readyCount}, min={minPlayers}, max={maxPlayers}");
             
             if (playerCount < minPlayers)
             {
@@ -424,7 +525,18 @@ namespace resource.LobbyScene
         {
             if (NetworkClient.localPlayer != null)
             {
-                NetworkClient.localPlayer.GetComponent<LobbyPlayer>()?.CmdSetReady();
+                var localLobbyPlayer = NetworkClient.localPlayer.GetComponent<LobbyPlayer>();
+                if (localLobbyPlayer != null)
+                {
+                    Debug.Log($"[LobbyManager] Local player clicking ready. Current state: {localLobbyPlayer.isReady}");
+                    localLobbyPlayer.CmdSetReady();
+                    
+                    // Notify server to update ready states
+                    if (isServer)
+                    {
+                        UpdatePlayerReadyState(localLobbyPlayer);
+                    }
+                }
                 
                 // Check if we should start countdown
                 if (isServer && LobbyCountdown.Instance != null)
@@ -433,6 +545,26 @@ namespace resource.LobbyScene
                 }
             }
         }
+        
+        [Server]
+        public void UpdatePlayerReadyState(LobbyPlayer player)
+        {
+            // Find player index in list
+            int index = lobbyPlayers.IndexOf(player);
+            if (index >= 0 && index < playerReadyStates.Count)
+            {
+                playerReadyStates[index] = player.isReady;
+                UpdateReadyCount();
+                Debug.Log($"[LobbyManager] Updated ready state for {player.playerName}: {player.isReady}");
+            }
+            else if (index >= 0)
+            {
+                // Index out of range, resync
+                Debug.LogWarning($"[LobbyManager] Ready state index out of range, resyncing...");
+                ResyncPlayerList();
+            }
+        }
+
 
         public MapData GetSelectedMap()
         {
