@@ -3,14 +3,14 @@ using UnityEngine;
 
 public class CarPlayer : NetworkBehaviour
 {
-    private PrometeoCarController carController;
+    private CarController carController;
 
     [SyncVar]
     public bool gameStarted = false;
 
     void Awake()
     {
-        carController = GetComponent<PrometeoCarController>();
+        carController = GetComponent<CarController>();
 
         // Disable control for everyone by default
         if (carController != null)
@@ -24,19 +24,57 @@ public class CarPlayer : NetworkBehaviour
         // If the game already started, enable control now
         if (gameStarted)
             EnableControl();
+        else
+            StartCoroutine(WaitForCameraAndSetup());
     }
 
-public void EnableControl()
+    System.Collections.IEnumerator WaitForCameraAndSetup()
+    {
+        // Wait a few frames for CameraFollow to initialize
+        yield return null;
+        yield return null;
+        yield return null;
+        yield return null;
+        yield return null;
+        
+        // Try to find CameraFollow component
+        CameraFollow cam = FindObjectOfType<CameraFollow>();
+        if (cam != null)
+        {
+            cam.SetTarget(transform);
+            Debug.Log("[CarPlayer] Camera target set to: " + gameObject.name + " (via WaitForCamera)");
+        }
+        else
+        {
+            Debug.LogError("[CarPlayer] CameraFollow component NOT FOUND in scene!");
+        }
+    }
+
+    public void EnableControl()
     {
         if (!isLocalPlayer) return;
 
         if (carController != null)
+        {
             carController.enabled = true;
+            Debug.Log("[CarPlayer] CarController enabled for: " + gameObject.name);
+        }
+        else
+        {
+            Debug.LogError("[CarPlayer] CarController component not found!");
+        }
 
-        // ✅ Correct camera assignment (local only)
-        CameraFollow cam = FindFirstObjectByType<CameraFollow>();
+        // ✅ Set camera target - critical for camera following
+        CameraFollow cam = FindObjectOfType<CameraFollow>();
         if (cam != null)
+        {
             cam.SetTarget(transform);
+            Debug.Log("[CarPlayer] Camera target set to: " + gameObject.name);
+        }
+        else
+        {
+            Debug.LogError("[CarPlayer] CameraFollow component NOT FOUND in scene!");
+        }
     }
 
     // ---------- LOBBY / GAME FLOW ----------
