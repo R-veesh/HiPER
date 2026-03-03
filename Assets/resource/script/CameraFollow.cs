@@ -38,6 +38,9 @@ public class CameraFollow : MonoBehaviour
     
     private Camera mainCamera;
     private bool targetSet = false;
+    private float searchTimer = 0.5f; // Start searching immediately
+    private float totalSearchTime = 0f;
+    private const float MAX_SEARCH_TIME = 30f;
 
     void Start()
     {
@@ -46,70 +49,65 @@ public class CameraFollow : MonoBehaviour
             mainCamera = Camera.main;
             
         Debug.Log("[CameraFollow] Initialized. Camera: " + (mainCamera != null ? "Found" : "NOT FOUND"));
-
-        // Try to find local player car immediately
-        if (target == null)
-            FindLocalPlayerCar();
-            
-        // Fallback: find any car after delay
-        Invoke("FindAnyCar", 2f);
     }
 
     void Update()
     {
         // Keep trying to find local player car until found
         if (target == null)
-            FindLocalPlayerCar();
+        {
+            totalSearchTime += Time.deltaTime;
+            searchTimer += Time.deltaTime;
+            
+            // Search every 0.5 seconds
+            if (searchTimer >= 0.5f)
+            {
+                FindLocalPlayerCar();
+                searchTimer = 0f;
+            }
+            
+            // Stop searching after timeout
+            if (totalSearchTime > MAX_SEARCH_TIME)
+            {
+                Debug.LogError("[CameraFollow] Failed to find local player car after " + MAX_SEARCH_TIME + "s! Check that GameSpawnManager is spawning cars with authority.");
+                totalSearchTime = MAX_SEARCH_TIME; // Prevent spam
+            }
+        }
     }
     
-    void FindAnyCar()
-    {
-        if (target != null) return;
-        
-        // Find any GameObject with CarPlayer component as fallback
-        CarPlayer[] cars = FindObjectsOfType<CarPlayer>();
-        foreach (var car in cars)
-        {
-            if (car != null)
-            {
-                target = car.transform;
-                targetSet = true;
-                Debug.Log("[CameraFollow] Fallback: Found car: " + target.name);
-                return;
-            }
-        }
-        
-        // If still no car, try finding CarController
-        CarController[] controllers = FindObjectsOfType<CarController>();
-        foreach (var carCtrl in controllers)
-        {
-            if (carCtrl != null)
-            {
-                target = carCtrl.transform;
-                targetSet = true;
-                Debug.Log("[CameraFollow] Fallback: Found car with CarController: " + target.name);
-                return;
-            }
-        }
-        
-        Debug.LogWarning("[CameraFollow] No cars found in scene!");
-    }
-
     void FindLocalPlayerCar()
     {
-        if (NetworkClient.localPlayer != null)
+        // Find the car that belongs to the local player
+        // Cars have CarPlayer component, and local player's car has isLocalPlayer = true
+        CarPlayer[] allCars = FindObjectsOfType<CarPlayer>();
+        
+        foreach (CarPlayer car in allCars)
         {
-            CarPlayer carPlayer = NetworkClient.localPlayer.GetComponent<CarPlayer>();
-            if (carPlayer != null)
+            // SAFETY: Check if car exists and has valid network setup before accessing isLocalPlayer
+            if (car == null) continue;
+            
+            // Try-catch to handle any network initialization issues
+            try
             {
-                target = carPlayer.transform;
-                targetSet = true;
-                Debug.Log("[CameraFollow] Auto-found local player car: " + target.name);
+                if (car.isLocalPlayer)
+                {
+                    target = car.transform;
+                    targetSet = true;
+                    Debug.Log("[CameraFollow] FOUND local player car: " + car.name);
+                    return;
+                }
             }
-            else
+            catch (System.NullReferenceException)
             {
-                Debug.LogWarning("[CameraFollow] Local player found but no CarPlayer component!");
+                // CarPlayer exists but network not initialized yet - skip it
+                continue;
             }
+        }
+        
+        // If no local player car found yet, log occasionally
+        if (Time.frameCount % 60 == 0)
+        {
+            Debug.Log("[CameraFollow] Waiting for local player car... Found " + allCars.Length + " cars total");
         }
     }
 
@@ -117,10 +115,6 @@ public class CameraFollow : MonoBehaviour
     {
         if (!target)
         {
-            if (targetSet)
-                Debug.LogWarning("[CameraFollow] Target lost!");
-            
-            FindLocalPlayerCar();
             return;
         }
 

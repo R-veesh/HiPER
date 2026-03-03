@@ -64,7 +64,7 @@ namespace resource.MainMenuScene
             Debug.Log("HOST button pressed – starting host and loading LobbyScene");
             base.OnStartHost();
             
-            // Ensure PlayerDataContainer exists
+            // Ensure PlayerDataContainer exists (now a regular MonoBehaviour, not NetworkBehaviour)
             EnsurePlayerDataContainer();
             
             // Automatically transition to LobbyScene after starting host
@@ -78,6 +78,8 @@ namespace resource.MainMenuScene
             if (existingContainer == null)
             {
                 // Create a new GameObject with PlayerDataContainer
+                // Note: PlayerDataContainer is now a MonoBehaviour (not NetworkBehaviour)
+                // so it doesn't need NetworkServer.Spawn - it just persists via DontDestroyOnLoad
                 GameObject containerObj = new GameObject("PlayerDataContainer");
                 containerObj.AddComponent<PlayerDataContainer>();
                 Debug.Log("[CustomNetworkManager] Created PlayerDataContainer");
@@ -222,6 +224,12 @@ namespace resource.MainMenuScene
             if (lobbyManager != null)
             {
                 lobbyManager.OnPlayerRemoved(conn);
+            }
+            
+            // Clean up disconnected player data to prevent orphaned cars
+            if (PlayerDataContainer.Instance != null)
+            {
+                PlayerDataContainer.Instance.RemovePlayerData(conn.connectionId);
             }
 
             base.OnServerDisconnect(conn);

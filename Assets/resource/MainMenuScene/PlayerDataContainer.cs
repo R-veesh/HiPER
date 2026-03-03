@@ -7,23 +7,36 @@ namespace resource.MainMenuScene
     /// <summary>
     /// Persistent data container that survives scene changes.
     /// Stores player info (car selection, ready state, etc.) when transitioning from lobby to game.
+    /// This runs ONLY on server - clients receive spawned cars via NetworkServer.Spawn.
     /// </summary>
-    public class PlayerDataContainer : NetworkBehaviour
+    public class PlayerDataContainer : MonoBehaviour
     {
         public static PlayerDataContainer Instance;
         
+        /// <summary>
+        /// Player game data struct - stored on server only
+        /// </summary>
         [System.Serializable]
-        public class PlayerGameData
+        public struct PlayerGameData
         {
             public int connectionId;
             public string playerName;
             public int selectedCarIndex;
             public int selectedMapIndex;
             public bool isReady;
+            
+            public PlayerGameData(int connId, string name, int carIdx, int mapIdx, bool ready)
+            {
+                connectionId = connId;
+                playerName = name;
+                selectedCarIndex = carIdx;
+                selectedMapIndex = mapIdx;
+                isReady = ready;
+            }
         }
         
-        // SyncList to store all players' data across network
-        private readonly SyncList<PlayerGameData> playerDataList = new SyncList<PlayerGameData>();
+        // Server-side only list - not synced (we spawn cars on server, clients see via NetworkServer.Spawn)
+        private List<PlayerGameData> playerDataList = new List<PlayerGameData>();
         
         void Awake()
         {
@@ -39,23 +52,17 @@ namespace resource.MainMenuScene
             }
         }
         
-        public override void OnStartServer()
-        {
-            base.OnStartServer();
-            playerDataList.Callback += OnPlayerDataChanged;
-        }
-        
-        void OnPlayerDataChanged(SyncList<PlayerGameData>.Operation op, int itemIndex, PlayerGameData oldItem, PlayerGameData newItem)
-        {
-            Debug.Log($"[PlayerDataContainer] Player data list changed: {op} at index {itemIndex}");
-        }
-        
         /// <summary>
         /// Call this before changing to game scene to save all player data
         /// </summary>
-        [Server]
         public void SaveAllPlayerData()
         {
+            if (!NetworkServer.active)
+            {
+                Debug.LogWarning("[PlayerDataContainer] SaveAllPlayerData called but not server!");
+                return;
+            }
+            
             playerDataList.Clear();
             
             var lobbyPlayers = FindObjectsOfType<resource.LobbyScene.LobbyPlayer>();
@@ -65,14 +72,13 @@ namespace resource.MainMenuScene
             {
                 if (lobbyPlayer != null && lobbyPlayer.connectionToClient != null)
                 {
-                    var data = new PlayerGameData
-                    {
-                        connectionId = lobbyPlayer.connectionToClient.connectionId,
-                        playerName = lobbyPlayer.playerName,
-                        selectedCarIndex = lobbyPlayer.selectedCarIndex,
-                        selectedMapIndex = lobbyPlayer.selectedMapIndex,
-                        isReady = lobbyPlayer.isReady
-                    };
+                    var data = new PlayerGameData(
+                        lobbyPlayer.connectionToClient.connectionId,
+                        lobbyPlayer.playerName,
+                        lobbyPlayer.selectedCarIndex,
+                        lobbyPlayer.selectedMapIndex,
+                        lobbyPlayer.isReady
+                    );
                     
                     playerDataList.Add(data);
                     Debug.Log($"[PlayerDataContainer] Saved data for player: {data.playerName} (Car: {data.selectedCarIndex})");
@@ -83,7 +89,7 @@ namespace resource.MainMenuScene
         /// <summary>
         /// Get player data by connection ID
         /// </summary>
-        public PlayerGameData GetPlayerData(int connectionId)
+        public PlayerGameData? GetPlayerData(int connectionId)
         {
             foreach (var data in playerDataList)
             {
@@ -91,6 +97,24 @@ namespace resource.MainMenuScene
                     return data;
             }
             return null;
+        }
+        
+        /// <summary>
+        /// Remove player data by connection ID
+        /// </summary>
+        public void RemovePlayerData(int connectionId)
+        {
+            if (!NetworkServer.active) return;
+            
+            for (int i = playerDataList.Count - 1; i >= 0; i--)
+            {
+                if (playerDataList[i].connectionId == connectionId)
+                {
+                    Debug.Log($"[PlayerDataContainer] Removed data for connection {connectionId}");
+                    playerDataList.RemoveAt(i);
+                    return;
+                }
+            }
         }
         
         /// <summary>
@@ -104,9 +128,10 @@ namespace resource.MainMenuScene
         /// <summary>
         /// Clear all stored data (call when returning to lobby)
         /// </summary>
-        [Server]
         public void ClearAllData()
         {
+            if (!NetworkServer.active) return;
+            
             playerDataList.Clear();
             Debug.Log("[PlayerDataContainer] All player data cleared");
         }

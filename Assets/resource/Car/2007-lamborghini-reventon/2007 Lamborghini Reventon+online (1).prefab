@@ -466,7 +466,7 @@ GameObject:
   - component: {fileID: 9117149029714131836}
   - component: {fileID: 6134914394451897959}
   - component: {fileID: 8252112611409478149}
-  - component: {fileID: 1782926913097605298}
+  - component: {fileID: 3643299926022583273}
   m_Layer: 0
   m_Name: 2007 Lamborghini Reventon+online (1)
   m_TagString: Untagged
@@ -620,7 +620,7 @@ MonoBehaviour:
   positionSensitivity: 0.01
   rotationSensitivity: 0.01
   scaleSensitivity: 0.01
---- !u!114 &1782926913097605298
+--- !u!114 &3643299926022583273
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -635,8 +635,8 @@ MonoBehaviour:
   syncMethod: 0
   syncDirection: 0
   syncMode: 0
-  syncInterval: 0.05
-  gameStarted: 1
+  syncInterval: 0
+  gameStarted: 0
 --- !u!1 &595584009782558106
 GameObject:
   m_ObjectHideFlags: 0

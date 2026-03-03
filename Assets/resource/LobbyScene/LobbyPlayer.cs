@@ -30,6 +30,13 @@ namespace resource.LobbyScene
         {
             Debug.Log($"[LobbyPlayer] OnStartClient called for {playerName} - isLocalPlayer: {isLocalPlayer}, isServer: {isServer}");
             
+            // Guard: only spawn in lobby scene
+            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "LobbyScene")
+            {
+                Debug.Log($"[LobbyPlayer] Not in lobby scene, skipping preview car spawn");
+                return;
+            }
+            
             // Only server spawns cars - clients will see them via network sync
             if (isServer)
             {
@@ -85,6 +92,13 @@ namespace resource.LobbyScene
 
         void SpawnPreviewCar()
         {
+            // Guard: only spawn in lobby scene
+            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "LobbyScene")
+            {
+                Debug.LogWarning($"[LobbyPlayer] SpawnPreviewCar called outside lobby scene! Aborting to prevent phantom cars.");
+                return;
+            }
+            
             Debug.Log($"[LobbyPlayer] SpawnPreviewCar called - isServer: {isServer}, isLocalPlayer: {isLocalPlayer}, carPrefabs: {(carPrefabs != null ? carPrefabs.Length : 0)}");
             
             // Destroy existing preview car
@@ -131,6 +145,14 @@ namespace resource.LobbyScene
         void OnCarChanged(int oldIndex, int newIndex)
         {
             Debug.Log($"[LobbyPlayer] Car changed from {oldIndex} to {newIndex} for {playerName}");
+            
+            // Guard: prevent spawning in game scene
+            if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "LobbyScene")
+            {
+                Debug.LogWarning($"[LobbyPlayer] Car changed outside lobby scene - ignoring to prevent phantom spawn");
+                return;
+            }
+            
             // Only server spawns cars
             if (isServer)
             {
