@@ -110,7 +110,7 @@ Before testing, verify:
 | Spawn Points assigned | ✅ | In GameSpawnManager Inspector |
 | Spawn Point GameObjects | ✅ | Positioned on map |
 | Main Camera | ✅ | Default camera |
-| CameraFollow Script | ✅ | On Main Camera |
+| CameraFollow Script | * | On Main Camera |
 | Car Prefabs with NetworkIdentity | ✅ | In Project window |
 | Car Prefabs with CarPlayer | ✅ | In Project window |
 | Car Prefabs with CarController | ✅ | In Project window |
@@ -181,10 +181,3 @@ Debug.Log($"Local player started: {gameObject.name}");
 
 Check the Console (Ctrl+Shift+C) for error messages. Common errors:
 
-| Error | Fix |
-|-------|-----|
-| "No car prefabs assigned!" | Add car prefabs to GameSpawnManager |
-| "No spawn points assigned!" | Add spawn points to GameSpawnManager |
-| "Car prefab missing NetworkIdentity" | Add NetworkIdentity to car prefab |
-| "PlayerDataContainer not found" | Check if PlayerDataContainer was created in Lobby |
-| "Cannot start game - CustomNetworkManager not found" | Verify NetworkManager has CustomNetworkManager script |

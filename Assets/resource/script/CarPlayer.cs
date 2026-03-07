@@ -1,12 +1,11 @@
 using Mirror;
 using UnityEngine;
-using System.Collections.Generic;
 using System.Collections;
-using UnityEngine.SceneManagement;
 
 public class CarPlayer : NetworkBehaviour
 {
     private CarController carController;
+    private bool setupDone = false;
 
     [SyncVar(hook = nameof(OnGameStartedChanged))]
     public bool gameStarted = false;
@@ -14,95 +13,83 @@ public class CarPlayer : NetworkBehaviour
     void Awake()
     {
         carController = GetComponent<CarController>();
-
-        // Disable control for everyone by default
         if (carController != null)
             carController.enabled = false;
+    }
+
+    public override void OnStartClient()
+    {
+        base.OnStartClient();
+        Debug.Log($"[CarPlayer] OnStartClient: {gameObject.name}, isLocalPlayer={isLocalPlayer}, isOwned={isOwned}");
+        if ((isLocalPlayer || isOwned) && !setupDone)
+            SetupLocalPlayer();
     }
 
     public override void OnStartLocalPlayer()
     {
         base.OnStartLocalPlayer();
-        Debug.Log("[CarPlayer] OnStartLocalPlayer called for: " + gameObject.name);
-        
-        // Enable control for local player
-        EnableControl();
-        
-        // Retry camera assignment if it failed (race condition safety)
-        CameraFollow cam = FindObjectOfType<CameraFollow>();
-        if (cam == null || cam.target != transform)
-        {
-            StartCoroutine(RetryCameraAssignment());
-        }
+        Debug.Log($"[CarPlayer] OnStartLocalPlayer: {gameObject.name}");
+        if (!setupDone)
+            SetupLocalPlayer();
     }
 
-    private System.Collections.IEnumerator RetryCameraAssignment()
+    public override void OnStartAuthority()
     {
-        for (int i = 0; i < 5; i++)
-        {
-            yield return new WaitForSeconds(0.5f);
-            CameraFollow cam = FindObjectOfType<CameraFollow>();
-            if (cam != null && cam.target == null)
-            {
-                cam.SetTarget(transform);
-                Debug.Log("[CarPlayer] Camera target set on retry #" + (i + 1) + " for: " + gameObject.name);
-                yield break;
-            }
-        }
-        Debug.LogError("[CarPlayer] Failed to assign camera target after 5 retries for: " + gameObject.name);
+        base.OnStartAuthority();
+        Debug.Log($"[CarPlayer] OnStartAuthority: {gameObject.name}");
+        if (!setupDone)
+            SetupLocalPlayer();
     }
 
-    void OnGameStartedChanged(bool oldValue, bool newValue)
+    void SetupLocalPlayer()
     {
-        Debug.Log("[CarPlayer] gameStarted changed to: " + newValue + " for " + gameObject.name);
-        if (newValue && isLocalPlayer)
+        if (setupDone) return;
+        if (!isLocalPlayer && !isOwned)
         {
-            EnableControl();
-        }
-    }
-
-    public void EnableControl()
-    {
-        if (!isLocalPlayer) 
-        {
-            Debug.Log("[CarPlayer] Not local player, skipping control enable for: " + gameObject.name);
+            Debug.Log("[CarPlayer] not owned, skipping setup");
             return;
         }
 
         if (carController != null)
         {
             carController.enabled = true;
-            Debug.Log("[CarPlayer] CarController ENABLED for local player: " + gameObject.name);
-        }
-        else
-        {
-            Debug.LogError("[CarPlayer] CarController component not found on: " + gameObject.name);
+            Debug.Log($"[CarPlayer] CarController enabled for {gameObject.name}");
         }
 
-        // Set camera target
-        CameraFollow cam = FindObjectOfType<CameraFollow>();
-        if (cam != null)
-        {
-            cam.SetTarget(transform);
-            Debug.Log("[CarPlayer] Camera target set to: " + gameObject.name);
-        }
-        else
-        {
-            Debug.LogError("[CarPlayer] CameraFollow component NOT FOUND in scene!");
-        }
+        StartCoroutine(SetupCameraRoutine());
+        setupDone = true;
     }
 
-    // Called by server to start the game for all players
+    IEnumerator SetupCameraRoutine()
+    {
+        // wait one frame so scene objects are ready
+        yield return null;
+
+        for (int i = 0; i < 10; i++)
+        {
+            CameraFollow cam = FindObjectOfType<CameraFollow>();
+            if (cam != null)
+            {
+                cam.SetTarget(transform);
+                Debug.Log($"[CarPlayer] Camera target set to: {gameObject.name}");
+                yield break;
+            }
+            yield return new WaitForSeconds(0.3f);
+        }
+        Debug.LogError("[CarPlayer] CameraFollow not found after retries!");
+    }
+
+    void OnGameStartedChanged(bool oldVal, bool newVal)
+    {
+        Debug.Log($"[CarPlayer] gameStarted: {newVal} for {gameObject.name}, isLocalPlayer={isLocalPlayer}, isOwned={isOwned}");
+        if (newVal && (isLocalPlayer || isOwned) && !setupDone)
+            SetupLocalPlayer();
+    }
+
     [Server]
     public void ServerStartGame()
     {
-        // Safety: verify NetworkIdentity is properly initialized
-        if (netIdentity == null || !netIdentity.isServer)
-        {
-            Debug.LogError("[CarPlayer] Cannot start game - NetworkIdentity not initialized! Car: " + gameObject.name);
-            return;
-        }
-        
+        if (!isServer) return;
         gameStarted = true;
         RpcStartGame();
     }
@@ -110,8 +97,17 @@ public class CarPlayer : NetworkBehaviour
     [ClientRpc]
     void RpcStartGame()
     {
-        Debug.Log("[CarPlayer] RpcStartGame received on: " + gameObject.name + " isLocalPlayer: " + isLocalPlayer);
-        if (isLocalPlayer)
-            EnableControl();
+        Debug.Log($"[CarPlayer] RpcStartGame on {gameObject.name}, isLocalPlayer={isLocalPlayer}, isOwned={isOwned}");
+        if ((isLocalPlayer || isOwned) && !setupDone)
+            SetupLocalPlayer();
+    }
+
+    void OnDestroy()
+    {
+        if (isOwned)
+        {
+            CameraFollow cam = FindObjectOfType<CameraFollow>();
+            if (cam != null) cam.ClearTarget();
+        }
     }
 }
