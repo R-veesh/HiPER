@@ -110,4 +110,60 @@ public class CarPlayer : NetworkBehaviour
             if (cam != null) cam.ClearTarget();
         }
     }
+
+    // ── Checkpoint / Race detection (additive – does not touch anything above) ──
+
+    void OnTriggerEnter(Collider other)
+    {
+        if (!isOwned) return; // only the owning client sends the command
+
+        Checkpoint cp = other.GetComponent<Checkpoint>();
+        if (cp != null)
+        {
+            CmdReportCheckpoint(cp.checkpointIndex, cp.isFinishLine);
+        }
+    }
+
+    [Command]
+    void CmdReportCheckpoint(int checkpointIndex, bool isFinishLine)
+    {
+        if (RaceManager.Instance != null)
+        {
+            RaceManager.Instance.ServerReportCheckpoint(netIdentity, checkpointIndex, isFinishLine);
+        }
+    }
+
+    // ── Race Result RPCs (routed through CarPlayer because scene-object RPCs may not work) ──
+
+    [ClientRpc]
+    public void RpcShowRaceResult(string playerName, int position)
+    {
+        Debug.Log($"[CarPlayer] RpcShowRaceResult received: {playerName} finished position {position}");
+
+        RaceResultUI ui = FindObjectOfType<RaceResultUI>();
+        if (ui != null)
+        {
+            ui.ShowPlayerFinished(playerName, position);
+        }
+        else
+        {
+            Debug.LogError("[CarPlayer] RaceResultUI NOT FOUND in scene! Add a Canvas with RaceResultUI component to the game scene.");
+        }
+    }
+
+    [ClientRpc]
+    public void RpcShowRaceComplete()
+    {
+        Debug.Log("[CarPlayer] RpcShowRaceComplete received");
+
+        RaceResultUI ui = FindObjectOfType<RaceResultUI>();
+        if (ui != null)
+        {
+            ui.ShowRaceComplete();
+        }
+        else
+        {
+            Debug.LogError("[CarPlayer] RaceResultUI NOT FOUND in scene! Add a Canvas with RaceResultUI component to the game scene.");
+        }
+    }
 }

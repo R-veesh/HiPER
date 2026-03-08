@@ -133,6 +133,10 @@ namespace resource.script
             }
             
             spawnedCars.Add(car);
+
+            // Register with race system
+            if (RaceManager.Instance != null)
+                RaceManager.Instance.RegisterPlayer(car.GetComponent<NetworkIdentity>(), playerData.playerName);
             
             // Start the game for this car after a frame to let network initialize
             StartCoroutine(StartGameAfterSpawn(carPlayer));
@@ -182,6 +186,10 @@ namespace resource.script
             
             spawnedCars.Add(car);
             Debug.Log($"[GameSpawnManager] Spawned car for {playerName}");
+
+            // Register with race system
+            if (RaceManager.Instance != null)
+                RaceManager.Instance.RegisterPlayer(car.GetComponent<NetworkIdentity>(), playerName);
             
             // Start the game for this car after a frame to let network initialize
             StartCoroutine(StartGameAfterSpawn(carPlayer));
