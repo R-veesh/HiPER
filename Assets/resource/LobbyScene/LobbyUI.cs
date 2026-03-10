@@ -73,13 +73,16 @@ namespace resource.LobbyScene
             DisableAllButtons();
             
             lobbyManager = LobbyManager.Instance;
+            if (lobbyManager == null)
+                lobbyManager = FindObjectOfType<LobbyManager>();
+
             countdownManager = LobbyCountdown.Instance;
             
             Debug.Log($"[LobbyUI] mapSelectionPanel: {(mapSelectionPanel != null ? "ASSIGNED" : "NULL")}");
             
             if (lobbyManager == null)
             {
-                Debug.LogError("[LobbyUI] LobbyManager not found!");
+                Debug.LogWarning("[LobbyUI] LobbyManager not found in Start, will retry in Update...");
             }
             else
             {
@@ -97,6 +100,14 @@ namespace resource.LobbyScene
 
         void Update()
         {
+            // Keep retrying to find LobbyManager if it wasn't available in Start()
+            if (lobbyManager == null)
+            {
+                lobbyManager = LobbyManager.Instance;
+                if (lobbyManager == null)
+                    lobbyManager = FindObjectOfType<LobbyManager>();
+            }
+
             if (localLobbyPlayer == null)
             {
                 FindLocalPlayer();
@@ -370,9 +381,15 @@ namespace resource.LobbyScene
             
             if (lobbyManager == null)
             {
-                Debug.LogError("[LobbyUI] Cannot click ready - LobbyManager is null!");
-                statusText.text = "ERROR: LobbyManager not found!";
-                return;
+                // Last-resort retry
+                lobbyManager = LobbyManager.Instance ?? FindObjectOfType<LobbyManager>();
+                if (lobbyManager == null)
+                {
+                    Debug.LogError("[LobbyUI] Cannot click ready - LobbyManager is null!");
+                    statusText.text = "ERROR: LobbyManager not found!";
+                    return;
+                }
+                Debug.Log("[LobbyUI] LobbyManager found on retry in OnReadyClicked");
             }
             
             if (localLobbyPlayer == null)
@@ -389,6 +406,9 @@ namespace resource.LobbyScene
         {
             Debug.Log("[LobbyUI] Start button clicked");
             
+            if (lobbyManager == null)
+                lobbyManager = LobbyManager.Instance ?? FindObjectOfType<LobbyManager>();
+
             if (lobbyManager == null)
             {
                 Debug.LogError("[LobbyUI] Cannot start game - LobbyManager is null!");

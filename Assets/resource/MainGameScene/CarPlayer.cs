@@ -133,17 +133,17 @@ public class CarPlayer : NetworkBehaviour
         }
     }
 
-    // ── Race Result RPCs (routed through CarPlayer because scene-object RPCs may not work) ──
+    // ── Race Result RPCs (TargetRpc ensures delivery to each specific client) ──
 
-    [ClientRpc]
-    public void RpcShowRaceResult(string playerName, int position)
+    [TargetRpc]
+    public void TargetShowRaceResult(NetworkConnection target, string playerName, int position, bool isYou)
     {
-        Debug.Log($"[CarPlayer] RpcShowRaceResult received: {playerName} finished position {position}");
+        Debug.Log($"[CarPlayer] TargetShowRaceResult received: {playerName} finished position {position}, isYou={isYou}");
 
         RaceResultUI ui = FindObjectOfType<RaceResultUI>();
         if (ui != null)
         {
-            ui.ShowPlayerFinished(playerName, position);
+            ui.ShowPlayerFinished(playerName, position, isYou);
         }
         else
         {
@@ -151,10 +151,10 @@ public class CarPlayer : NetworkBehaviour
         }
     }
 
-    [ClientRpc]
-    public void RpcShowRaceComplete()
+    [TargetRpc]
+    public void TargetShowRaceComplete(NetworkConnection target)
     {
-        Debug.Log("[CarPlayer] RpcShowRaceComplete received");
+        Debug.Log("[CarPlayer] TargetShowRaceComplete received");
 
         RaceResultUI ui = FindObjectOfType<RaceResultUI>();
         if (ui != null)

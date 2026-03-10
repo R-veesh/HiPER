@@ -35,10 +35,16 @@ namespace resource.LobbyScene
 
         void Awake()
         {
+            // Clear stale reference from previous scene load
+            if (Instance != null && Instance != this && Instance.gameObject == null)
+                Instance = null;
+
             if (Instance == null)
                 Instance = this;
-            else
+            else if (Instance != this)
                 Destroy(gameObject);
+
+            Debug.Log($"[LobbyManager] Awake - Instance set to {gameObject.name}");
 
             if (spawnPoints != null && spawnPoints.Length > 0)
             {
@@ -75,6 +81,12 @@ namespace resource.LobbyScene
                     Debug.LogError("[LobbyManager] CRITICAL: LobbyPlayer prefab missing LobbyPlayer component!");
                 }
             }
+        }
+
+        void OnDestroy()
+        {
+            if (Instance == this)
+                Instance = null;
         }
 
         public override void OnStartServer()

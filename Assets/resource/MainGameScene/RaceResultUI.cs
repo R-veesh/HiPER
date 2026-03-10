@@ -28,7 +28,10 @@ public class RaceResultUI : MonoBehaviour
             Debug.LogError("[RaceResultUI] resultPanel is NOT assigned in Inspector!");
 
         if (returnButton != null)
+        {
             returnButton.onClick.AddListener(OnReturnClicked);
+            returnButton.gameObject.SetActive(false);
+        }
         else
             Debug.LogWarning("[RaceResultUI] returnButton is NOT assigned in Inspector!");
 
@@ -40,14 +43,11 @@ public class RaceResultUI : MonoBehaviour
     }
 
     /// <summary>
-    /// Called from RaceManager RPC when a player crosses the finish line.
+    /// Called from CarPlayer TargetRpc when a player crosses the finish line.
     /// </summary>
-    public void ShowPlayerFinished(string playerName, int position)
+    public void ShowPlayerFinished(string playerName, int position, bool isYou)
     {
-        Debug.Log($"[RaceResultUI] ShowPlayerFinished: {playerName} at position {position}");
-
-        if (resultPanel != null)
-            resultPanel.SetActive(true);
+        Debug.Log($"[RaceResultUI] ShowPlayerFinished: {playerName} at position {position}, isYou={isYou}");
 
         string suffix;
         switch (position)
@@ -60,45 +60,40 @@ public class RaceResultUI : MonoBehaviour
 
         finishEntries.Add($"{position}{suffix} - {playerName}");
 
-        if (resultText != null)
-            resultText.text = string.Join("\n", finishEntries);
-
-        // Check if this is the local player
-        bool isLocalPlayer = IsLocalPlayerName(playerName);
-
-        if (statusText != null)
+        if (isYou)
         {
-            if (isLocalPlayer)
+            // This client's player just finished — show the panel NOW
+            localPlayerFinished = true;
+
+            if (resultPanel != null)
+                resultPanel.SetActive(true);
+
+            if (resultText != null)
+                resultText.text = string.Join("\n", finishEntries);
+
+            if (statusText != null)
             {
-                localPlayerFinished = true;
                 if (position == 1)
                     statusText.text = "YOU WIN!";
                 else
                     statusText.text = $"DEFEAT - You finished {position}{suffix}";
             }
-            else if (!localPlayerFinished)
-            {
-                // Another player finished first and local player hasn't yet
-                if (position == 1)
-                    statusText.text = $"{playerName} Wins!";
-            }
+
+            // Show return button immediately for the finisher
+            if (returnButton != null)
+                returnButton.gameObject.SetActive(true);
         }
+        else if (localPlayerFinished)
+        {
+            // Local player already finished — update the result list with other finishers
+            if (resultText != null)
+                resultText.text = string.Join("\n", finishEntries);
+        }
+        // If local player hasn't finished yet, don't show anything — no spoilers
     }
 
     /// <summary>
-    /// Check if the given player name matches the local player's car.
-    /// </summary>
-    private bool IsLocalPlayerName(string playerName)
-    {
-        if (NetworkClient.localPlayer == null) return false;
-
-        // The car name format from GameSpawnManager is "Car_{playerName}_{connectionId}"
-        string carName = NetworkClient.localPlayer.gameObject.name;
-        return carName.Contains(playerName);
-    }
-
-    /// <summary>
-    /// Called from RaceManager RPC when all players have finished.
+    /// Called from CarPlayer TargetRpc when all players have finished.
     /// </summary>
     public void ShowRaceComplete()
     {
@@ -106,6 +101,10 @@ public class RaceResultUI : MonoBehaviour
 
         if (resultPanel != null)
             resultPanel.SetActive(true);
+
+        // Update results list with all entries
+        if (resultText != null)
+            resultText.text = string.Join("\n", finishEntries);
 
         if (statusText != null && string.IsNullOrEmpty(statusText.text))
             statusText.text = "Race Over!";
@@ -116,10 +115,23 @@ public class RaceResultUI : MonoBehaviour
 
     void OnReturnClicked()
     {
-        // if host, stop host; if client, disconnect
-        if (Mirror.NetworkServer.active && Mirror.NetworkClient.isConnected)
-            Mirror.NetworkManager.singleton.StopHost();
-        else if (Mirror.NetworkClient.isConnected)
-            Mirror.NetworkManager.singleton.StopClient();
+        Debug.Log("[RaceResultUI] Return button clicked");
+
+        // Use CustomNetworkManager's ReturnToMainMenu which properly handles
+        // stopping network + loading main menu scene
+        var netManager = NetworkManager.singleton as resource.MainMenuScene.CustomNetworkManager;
+        if (netManager != null)
+        {
+            netManager.ReturnToMainMenu();
+        }
+        else
+        {
+            // Fallback: stop network and load main menu
+            Debug.LogWarning("[RaceResultUI] CustomNetworkManager not found, using fallback");
+            if (NetworkServer.active && NetworkClient.isConnected)
+                NetworkManager.singleton.StopHost();
+            else if (NetworkClient.isConnected)
+                NetworkManager.singleton.StopClient();
+        }
     }
 }

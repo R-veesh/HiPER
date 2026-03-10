@@ -242,7 +242,9 @@ namespace resource.MainMenuScene
             Debug.Log($"[CustomNetworkManager] Server scene changed to: {sceneName}");
             
             // Find lobby manager when in lobby scene
-            if (sceneName == lobbyScene)
+            // Use Contains instead of == because scene paths differ between Editor and Build
+            // Editor: "Assets/Scenes/LobbyScene.unity"  Build: may be just "LobbyScene" or different path
+            if (IsSceneMatch(sceneName, "LobbyScene"))
             {
                 lobbyManager = FindObjectOfType<LobbyManager>();
                 if (lobbyManager != null)
@@ -252,10 +254,11 @@ namespace resource.MainMenuScene
                 else
                 {
                     Debug.LogWarning("[CustomNetworkManager] LobbyManager not found in LobbyScene!");
+                    StartCoroutine(RetryFindLobbyManager());
                 }
             }
             // Handle game scene loading - check if it's ANY game scene
-            else if (sceneName != mainMenuScene && sceneName != lobbyScene)
+            else if (!IsSceneMatch(sceneName, "MainMenu") && !IsSceneMatch(sceneName, "LobbyScene"))
             {
                 Debug.Log($"[CustomNetworkManager] Game scene {sceneName} loaded - initializing game");
                 // Wait a frame for all clients to be ready
@@ -301,6 +304,30 @@ namespace resource.MainMenuScene
             Debug.Log("[CustomNetworkManager] Client disconnected, reset playerAddRequested flag");
             
             base.OnClientDisconnect();
+        }
+
+        /// <summary>
+        /// Compare scene name robustly — works in both Editor (full path) and Build (short name).
+        /// </summary>
+        bool IsSceneMatch(string scenePath, string sceneKeyword)
+        {
+            if (string.IsNullOrEmpty(scenePath)) return false;
+            return scenePath.IndexOf(sceneKeyword, System.StringComparison.OrdinalIgnoreCase) >= 0;
+        }
+
+        System.Collections.IEnumerator RetryFindLobbyManager()
+        {
+            for (int i = 0; i < 20; i++)
+            {
+                yield return new WaitForSeconds(0.25f);
+                lobbyManager = FindObjectOfType<LobbyManager>();
+                if (lobbyManager != null)
+                {
+                    Debug.Log($"[CustomNetworkManager] LobbyManager found on retry #{i + 1}");
+                    yield break;
+                }
+            }
+            Debug.LogError("[CustomNetworkManager] LobbyManager not found after 5s of retries!");
         }
 
         public void ReturnToMainMenu()

@@ -71,14 +71,36 @@ public class RaceManager : NetworkBehaviour
     /// RaceManager is a scene object whose RPCs may not work, so we route through CarPlayer.
     /// </summary>
     [Server]
-    CarPlayer GetAnyCarPlayer()
+    void NotifyAllPlayersOfFinish(string finishedPlayerName, int position, uint finisherNetId)
     {
+        int sent = 0;
         foreach (var kvp in playerData)
         {
-            if (kvp.Value.carPlayer != null)
-                return kvp.Value.carPlayer;
+            CarPlayer cp = kvp.Value.carPlayer;
+            if (cp != null && cp.connectionToClient != null)
+            {
+                bool isYou = (kvp.Key == finisherNetId);
+                cp.TargetShowRaceResult(cp.connectionToClient, finishedPlayerName, position, isYou);
+                sent++;
+            }
         }
-        return null;
+        Debug.Log($"[RaceManager] Sent finish notification to {sent} clients");
+    }
+
+    [Server]
+    void NotifyAllPlayersRaceComplete()
+    {
+        int sent = 0;
+        foreach (var kvp in playerData)
+        {
+            CarPlayer cp = kvp.Value.carPlayer;
+            if (cp != null && cp.connectionToClient != null)
+            {
+                cp.TargetShowRaceComplete(cp.connectionToClient);
+                sent++;
+            }
+        }
+        Debug.Log($"[RaceManager] Sent race complete notification to {sent} clients");
     }
 
     /// <summary>
@@ -121,27 +143,16 @@ public class RaceManager : NetworkBehaviour
                 });
                 Debug.Log($"[RaceManager] {data.playerName} FINISHED in position {position}!");
 
-                // Route RPC through CarPlayer (scene-object RPCs on RaceManager don't work)
-                CarPlayer broadcaster = GetAnyCarPlayer();
-                if (broadcaster != null)
-                {
-                    Debug.Log($"[RaceManager] Broadcasting finish via CarPlayer: {broadcaster.gameObject.name}");
-                    broadcaster.RpcShowRaceResult(data.playerName, position);
-                }
-                else
-                {
-                    Debug.LogError("[RaceManager] No CarPlayer found to broadcast RPC!");
-                }
+                // Notify ALL clients via each player's own CarPlayer TargetRpc
+                // This guarantees delivery to every client through their own connection
+                NotifyAllPlayersOfFinish(data.playerName, position, netId);
 
                 // check if all players finished
                 if (finishOrder.Count >= playerData.Count)
                 {
                     raceFinished = true;
-                    if (broadcaster != null)
-                    {
-                        Debug.Log("[RaceManager] Broadcasting race complete via CarPlayer");
-                        broadcaster.RpcShowRaceComplete();
-                    }
+                    Debug.Log("[RaceManager] Race complete! Notifying all clients.");
+                    NotifyAllPlayersRaceComplete();
                 }
             }
         }

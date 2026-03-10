@@ -163,7 +163,6 @@ Debug.Log($"Spawning {playerDataList.Count} cars");
 // In CarPlayer.OnStartLocalPlayer()
 Debug.Log($"Local player started: {gameObject.name}");
 ```
-
 ---
 
 ## File Locations Reference
