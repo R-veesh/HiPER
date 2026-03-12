@@ -4,25 +4,30 @@ using System.Collections;
 
 public class CarPlayer : NetworkBehaviour
 {
+    private PrometeoCarController prometeoController;
     private CarController carController;
     private bool setupDone = false;
 
     [SyncVar(hook = nameof(OnGameStartedChanged))]
     public bool gameStarted = false;
 
+    // ── HUD SyncVars (set by server, read by clients for HUD display) ──
+    [SyncVar] public string playerName;
+    [SyncVar] public int racePosition;   // 1-based position in race
+    [SyncVar] public int totalRacers;    // total players in race
+    [SyncVar] public int syncedLap;      // current lap (0-based)
+    [SyncVar] public int syncedTotalLaps;
+
     void Awake()
     {
+        // Support both controller types — prefabs may use either one
+        prometeoController = GetComponent<PrometeoCarController>();
         carController = GetComponent<CarController>();
-        if (carController != null)
-            carController.enabled = false;
-    }
 
-    public override void OnStartClient()
-    {
-        base.OnStartClient();
-        Debug.Log($"[CarPlayer] OnStartClient: {gameObject.name}, isLocalPlayer={isLocalPlayer}, isOwned={isOwned}");
-        if ((isLocalPlayer || isOwned) && !setupDone)
-            SetupLocalPlayer();
+        if (prometeoController != null)
+            prometeoController.enabled = false;
+        else if (carController != null)
+            carController.enabled = false;
     }
 
     public override void OnStartLocalPlayer()
@@ -50,7 +55,12 @@ public class CarPlayer : NetworkBehaviour
             return;
         }
 
-        if (carController != null)
+        if (prometeoController != null)
+        {
+            prometeoController.enabled = true;
+            Debug.Log($"[CarPlayer] PrometeoCarController enabled for {gameObject.name}");
+        }
+        else if (carController != null)
         {
             carController.enabled = true;
             Debug.Log($"[CarPlayer] CarController enabled for {gameObject.name}");
@@ -58,6 +68,34 @@ public class CarPlayer : NetworkBehaviour
 
         StartCoroutine(SetupCameraRoutine());
         setupDone = true;
+    }
+
+    public override void OnStartClient()
+    {
+        base.OnStartClient();
+        Debug.Log($"[CarPlayer] OnStartClient: {gameObject.name}, isLocalPlayer={isLocalPlayer}, isOwned={isOwned}");
+        if ((isLocalPlayer || isOwned) && !setupDone)
+            SetupLocalPlayer();
+
+        // Spawn floating name label above this car for all clients
+        StartCoroutine(SpawnNameLabelWhenReady());
+    }
+
+    IEnumerator SpawnNameLabelWhenReady()
+    {
+        // Wait until playerName SyncVar is populated
+        float timeout = 5f;
+        while (string.IsNullOrEmpty(playerName) && timeout > 0f)
+        {
+            timeout -= Time.deltaTime;
+            yield return null;
+        }
+
+        if (!string.IsNullOrEmpty(playerName))
+        {
+            bool isLocal = isOwned || isLocalPlayer;
+            FloatingNameLabel.CreateForCar(transform, playerName, isLocal);
+        }
     }
 
     IEnumerator SetupCameraRoutine()

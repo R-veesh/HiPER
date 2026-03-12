@@ -180,3 +180,61 @@ Debug.Log($"Local player started: {gameObject.name}");
 
 Check the Console (Ctrl+Shift+C) for error messages. Common errors:
 
+
+***
+
+___
+
+Files Created
+1. RacingHUD.cs — Main HUD overlay
+2. FloatingNameLabel.cs — Billboard name above opponents
+Files Modified
+3. CarPlayer.cs — Added SyncVars + name label spawning
+4. RaceManager.cs — Real-time position calculation
+5. GameSpawnManager.cs — Sets playerName SyncVar at spawn
+
+
+UI Hierarchy to Build in Unity Inspector
+
+RacingHUD_Canvas  (Canvas: Screen Space - Overlay, Sort Order 1)
+│
+├── TopBar  (Panel, anchored top-stretch, height ~80px, semi-transparent black)
+│   ├── PositionText    (TextMeshPro - Text UI)  anchored top-left    → "1/6 POS"
+│   ├── SpeedText       (TextMeshPro - Text UI)  anchored top-center  → "180"
+│   ├── SpeedUnitText   (TextMeshPro - Text UI)  below SpeedText      → "KM/H"
+│   ├── LapText         (TextMeshPro - Text UI)  anchored top-right   → "2/3 LAP"
+│   └── PauseButton     (Button + Image)         top-right corner     → ⏸ icon
+│
+├── SpeedBarBG  (Image, arc/semi-circle sprite, bottom-center)
+│   └── SpeedBarFill  (Image, type=Filled, FillMethod=Radial360, bottom-center)
+│
+└── GearText  (TextMeshPro - Text UI, near speed bar)  → "3"
+
+Attach the RacingHUD script to the Canvas, then drag each UI element into the Inspector slots.
+
+Speed Bar Setup
+Create an arc/semi-circle sprite (or use a full circle and set fill origin/range)
+On SpeedBarFill Image: set Image Type = Filled, Fill Method = Radial 360, Fill Origin = Bottom
+Assign it to RacingHUD.speedBarFill
+Set the speedBarGradient in Inspector: green at 0 → yellow at 0.6 → red at 1.0
+Floating Name Labels — How It Works
+Each CarPlayer now automatically spawns a FloatingNameLabel via OnStartClient():
+
+What	How
+Creation	FloatingNameLabel.CreateForCar(transform, playerName, isLocal) called in coroutine after playerName SyncVar arrives
+Follow vehicle	LateUpdate() sets position = target.position + offset
+Billboard	Quaternion.LookRotation(-dirToCamera) every frame
+Local player	Label is hidden (gameObject.SetActive(false)) — you don't see your own name
+Distance fade	Alpha fades from fadeStartDistance (60m) to maxVisibleDistance (80m)
+
+Data Flow
+
+Server: GameSpawnManager → spawns car → sets CarPlayer.playerName (SyncVar)
+                         → RaceManager.RegisterPlayer() → sets totalRacers, syncedTotalLaps
+
+Server: RaceManager.Update() → every 0.25s → UpdateRacePositions()
+         → sorts all players by lap/checkpoint progress
+         → writes CarPlayer.racePosition, CarPlayer.syncedLap (SyncVars auto-sync to clients)
+
+Client: RacingHUD.Update() → reads local CarPlayer SyncVars → updates HUD text
+         → reads Rigidbody.velocity for speed (local, no sync needed)

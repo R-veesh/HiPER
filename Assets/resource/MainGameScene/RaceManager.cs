@@ -15,6 +15,8 @@ public class RaceManager : NetworkBehaviour
     private Dictionary<uint, PlayerRaceData> playerData = new Dictionary<uint, PlayerRaceData>();
     private List<RaceFinishEntry> finishOrder = new List<RaceFinishEntry>();
     private bool raceFinished = false;
+    private float positionUpdateTimer = 0f;
+    private const float POSITION_UPDATE_INTERVAL = 0.25f;
 
     class PlayerRaceData
     {
@@ -29,6 +31,7 @@ public class RaceManager : NetworkBehaviour
     {
         public string playerName;
         public int position;
+        public uint netId;
     }
 
     void Awake()
@@ -63,7 +66,92 @@ public class RaceManager : NetworkBehaviour
                 carPlayer = carIdentity.GetComponent<CarPlayer>()
             };
             Debug.Log($"[RaceManager] Registered player: {playerName} (netId={netId}, carPlayer={playerData[netId].carPlayer != null})");
+
+            // Set initial HUD SyncVars on CarPlayer
+            CarPlayer cp = playerData[netId].carPlayer;
+            if (cp != null)
+            {
+                cp.syncedTotalLaps = totalLaps;
+                cp.totalRacers = playerData.Count;
+            }
+
+            // Update totalRacers for all players when a new player joins
+            foreach (var kvp in playerData)
+            {
+                if (kvp.Value.carPlayer != null)
+                    kvp.Value.carPlayer.totalRacers = playerData.Count;
+            }
         }
+    }
+
+    void Update()
+    {
+        if (!isServer) return;
+        if (raceFinished) return;
+
+        positionUpdateTimer -= Time.deltaTime;
+        if (positionUpdateTimer <= 0f)
+        {
+            positionUpdateTimer = POSITION_UPDATE_INTERVAL;
+            UpdateRacePositions();
+        }
+    }
+
+    /// <summary>
+    /// Calculate real-time race positions based on lap, checkpoint, and distance progress.
+    /// Runs on server, writes to CarPlayer SyncVars.
+    /// </summary>
+    [Server]
+    void UpdateRacePositions()
+    {
+        if (playerData.Count == 0) return;
+
+        // Build a sortable list
+        var sortList = new List<KeyValuePair<uint, PlayerRaceData>>(playerData);
+
+        // Sort: finished players first (by finish position), then by lap desc, checkpoint desc
+        sortList.Sort((a, b) =>
+        {
+            // Finished players rank by their recorded finish position
+            if (a.Value.finished && b.Value.finished)
+                return GetFinishPosition(a.Key).CompareTo(GetFinishPosition(b.Key));
+            if (a.Value.finished) return -1;
+            if (b.Value.finished) return 1;
+
+            // Compare by lap (desc)
+            int lapCmp = b.Value.currentLap.CompareTo(a.Value.currentLap);
+            if (lapCmp != 0) return lapCmp;
+
+            // Compare by checkpoint (desc)
+            int cpCmp = b.Value.currentCheckpoint.CompareTo(a.Value.currentCheckpoint);
+            if (cpCmp != 0) return cpCmp;
+
+            // Same lap and checkpoint — compare by distance to next checkpoint
+            // (closer = ahead, so smaller distance = better = lower rank number)
+            // Since we don't have checkpoint transforms here, keep current order
+            return 0;
+        });
+
+        // Assign positions
+        for (int i = 0; i < sortList.Count; i++)
+        {
+            CarPlayer cp = sortList[i].Value.carPlayer;
+            if (cp != null)
+            {
+                cp.racePosition = i + 1;
+                cp.syncedLap = sortList[i].Value.currentLap;
+            }
+        }
+    }
+
+    int GetFinishPosition(uint netId)
+    {
+        for (int i = 0; i < finishOrder.Count; i++)
+        {
+            if (finishOrder[i].netId == netId)
+                return finishOrder[i].position;
+        }
+        return finishOrder.Count + 1;
     }
 
     /// <summary>
@@ -139,7 +227,8 @@ public class RaceManager : NetworkBehaviour
                 finishOrder.Add(new RaceFinishEntry
                 {
                     playerName = data.playerName,
-                    position = position
+                    position = position,
+                    netId = netId
                 });
                 Debug.Log($"[RaceManager] {data.playerName} FINISHED in position {position}!");
 

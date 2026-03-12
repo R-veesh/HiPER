@@ -132,6 +132,10 @@ namespace resource.script
                 return;
             }
             
+            // Set the playerName SyncVar so clients can display it
+            if (carPlayer != null)
+                carPlayer.playerName = playerData.playerName;
+
             spawnedCars.Add(car);
 
             // Register with race system
@@ -183,6 +187,10 @@ namespace resource.script
             
             car.name = $"Car_{playerName}_{conn.connectionId}";
             NetworkServer.Spawn(car, conn);
+
+            // Set the playerName SyncVar so clients can display it
+            if (carPlayer != null)
+                carPlayer.playerName = playerName;
             
             spawnedCars.Add(car);
             Debug.Log($"[GameSpawnManager] Spawned car for {playerName}");
