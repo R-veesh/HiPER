@@ -666,12 +666,18 @@ namespace Unity.VisualScripting.Generated.Aot
 	// Checkpoint.op_Implicit
 	// Checkpoint.op_Equality
 	// Checkpoint.op_Inequality
+	// FloatingNameLabel.op_Implicit
+	// FloatingNameLabel.op_Equality
+	// FloatingNameLabel.op_Inequality
 	// RaceManager.op_Implicit
 	// RaceManager.op_Equality
 	// RaceManager.op_Inequality
 	// RaceResultUI.op_Implicit
 	// RaceResultUI.op_Equality
 	// RaceResultUI.op_Inequality
+	// RacingHUD.op_Implicit
+	// RacingHUD.op_Equality
+	// RacingHUD.op_Inequality
 	// utility_AdjustCulling.op_Implicit
 	// utility_AdjustCulling.op_Equality
 	// utility_AdjustCulling.op_Inequality
@@ -8735,6 +8741,41 @@ namespace Unity.VisualScripting.Generated.Aot
 			optimized.Invoke(default(object[]));
 		}
 		
+		// FloatingNameLabel.op_Implicit
+		[global::UnityEngine.Scripting.PreserveAttribute()]
+		public static void FloatingNameLabel_op_Implicit()
+		{
+			global::UnityEngine.Object arg0 = default(global::UnityEngine.Object);
+			bool conversion = ((bool)(arg0));
+			global::Unity.VisualScripting.StaticFunctionInvoker<UnityEngine.Object, bool> optimized = new global::Unity.VisualScripting.StaticFunctionInvoker<UnityEngine.Object, bool>(default(global::System.Reflection.MethodInfo));
+			optimized.Invoke(null, arg0);
+			optimized.Invoke(default(object[]));
+		}
+		
+		// FloatingNameLabel.op_Equality
+		[global::UnityEngine.Scripting.PreserveAttribute()]
+		public static void FloatingNameLabel_op_Equality()
+		{
+			global::UnityEngine.Object arg0 = default(global::UnityEngine.Object);
+			global::UnityEngine.Object arg1 = default(global::UnityEngine.Object);
+			bool @operator = (arg0 == arg1);
+			global::Unity.VisualScripting.StaticFunctionInvoker<UnityEngine.Object, UnityEngine.Object, bool> optimized = new global::Unity.VisualScripting.StaticFunctionInvoker<UnityEngine.Object, UnityEngine.Object, bool>(default(global::System.Reflection.MethodInfo));
+			optimized.Invoke(null, arg0, arg1);
+			optimized.Invoke(default(object[]));
+		}
+		
+		// FloatingNameLabel.op_Inequality
+		[global::UnityEngine.Scripting.PreserveAttribute()]
+		public static void FloatingNameLabel_op_Inequality()
+		{
+			global::UnityEngine.Object arg0 = default(global::UnityEngine.Object);
+			global::UnityEngine.Object arg1 = default(global::UnityEngine.Object);
+			bool @operator = (arg0 != arg1);
+			global::Unity.VisualScripting.StaticFunctionInvoker<UnityEngine.Object, UnityEngine.Object, bool> optimized = new global::Unity.VisualScripting.StaticFunctionInvoker<UnityEngine.Object, UnityEngine.Object, bool>(default(global::System.Reflection.MethodInfo));
+			optimized.Invoke(null, arg0, arg1);
+			optimized.Invoke(default(object[]));
+		}
+		
 		// RaceManager.op_Implicit
 		[global::UnityEngine.Scripting.PreserveAttribute()]
 		public static void RaceManager_op_Implicit()
@@ -8796,6 +8837,41 @@ namespace Unity.VisualScripting.Generated.Aot
 		// RaceResultUI.op_Inequality
 		[global::UnityEngine.Scripting.PreserveAttribute()]
 		public static void RaceResultUI_op_Inequality()
+		{
+			global::UnityEngine.Object arg0 = default(global::UnityEngine.Object);
+			global::UnityEngine.Object arg1 = default(global::UnityEngine.Object);
+			bool @operator = (arg0 != arg1);
+			global::Unity.VisualScripting.StaticFunctionInvoker<UnityEngine.Object, UnityEngine.Object, bool> optimized = new global::Unity.VisualScripting.StaticFunctionInvoker<UnityEngine.Object, UnityEngine.Object, bool>(default(global::System.Reflection.MethodInfo));
+			optimized.Invoke(null, arg0, arg1);
+			optimized.Invoke(default(object[]));
+		}
+		
+		// RacingHUD.op_Implicit
+		[global::UnityEngine.Scripting.PreserveAttribute()]
+		public static void RacingHUD_op_Implicit()
+		{
+			global::UnityEngine.Object arg0 = default(global::UnityEngine.Object);
+			bool conversion = ((bool)(arg0));
+			global::Unity.VisualScripting.StaticFunctionInvoker<UnityEngine.Object, bool> optimized = new global::Unity.VisualScripting.StaticFunctionInvoker<UnityEngine.Object, bool>(default(global::System.Reflection.MethodInfo));
+			optimized.Invoke(null, arg0);
+			optimized.Invoke(default(object[]));
+		}
+		
+		// RacingHUD.op_Equality
+		[global::UnityEngine.Scripting.PreserveAttribute()]
+		public static void RacingHUD_op_Equality()
+		{
+			global::UnityEngine.Object arg0 = default(global::UnityEngine.Object);
+			global::UnityEngine.Object arg1 = default(global::UnityEngine.Object);
+			bool @operator = (arg0 == arg1);
+			global::Unity.VisualScripting.StaticFunctionInvoker<UnityEngine.Object, UnityEngine.Object, bool> optimized = new global::Unity.VisualScripting.StaticFunctionInvoker<UnityEngine.Object, UnityEngine.Object, bool>(default(global::System.Reflection.MethodInfo));
+			optimized.Invoke(null, arg0, arg1);
+			optimized.Invoke(default(object[]));
+		}
+		
+		// RacingHUD.op_Inequality
+		[global::UnityEngine.Scripting.PreserveAttribute()]
+		public static void RacingHUD_op_Inequality()
 		{
 			global::UnityEngine.Object arg0 = default(global::UnityEngine.Object);
 			global::UnityEngine.Object arg1 = default(global::UnityEngine.Object);

@@ -534,12 +534,12 @@ MonoBehaviour:
   m_EditorClassIdentifier: 
   maxSpeed: 190
   maxReverseSpeed: 120
-  accelerationMultiplier: 7
+  accelerationMultiplier: 4
   maxSteeringAngle: 37
   steeringSpeed: 0.772
   brakeForce: 455
   decelerationMultiplier: 3
-  handbrakeDriftMultiplier: 7
+  handbrakeDriftMultiplier: 1
   bodyMassCenter: {x: 0, y: 0, z: 0}
   frontLeftMesh: {fileID: 357338892770909282}
   frontLeftCollider: {fileID: 1277568413658235850}
@@ -637,6 +637,11 @@ MonoBehaviour:
   syncMode: 0
   syncInterval: 0
   gameStarted: 0
+  playerName: 
+  racePosition: 0
+  totalRacers: 0
+  syncedLap: 0
+  syncedTotalLaps: 0
 --- !u!1 &595584009782558106
 GameObject:
   m_ObjectHideFlags: 0
