@@ -35,6 +35,9 @@ namespace resource.LobbyScene
         public TextMeshProUGUI playerCountText;
         public TextMeshProUGUI roomCodeText;
 
+        [Header("Coin Display")]
+        public TextMeshProUGUI coinBalanceText;
+
         [Header("Status Panel")]
         public GameObject statusPanel;
         public Image statusPanelBackground;
@@ -96,6 +99,9 @@ namespace resource.LobbyScene
             {
                 statusText.text = "Loading...";
             }
+
+            // Refresh coin balance from backend
+            RefreshCoinDisplay();
         }
 
         void Update()
@@ -346,6 +352,28 @@ namespace resource.LobbyScene
                     // Show specific status message
                     statusText.text = lobbyManager.GetReadyStatusMessage();
                 }
+            }
+        }
+
+        void RefreshCoinDisplay()
+        {
+            if (coinBalanceText == null) return;
+            if (UserSession.Instance != null && UserSession.Instance.IsLoggedIn)
+            {
+                coinBalanceText.text = $"{UserSession.Instance.CoinBalance} coins";
+                // Also refresh from server
+                if (AuthManager.Instance != null)
+                {
+                    AuthManager.Instance.RefreshBalance((balance) =>
+                    {
+                        if (coinBalanceText != null)
+                            coinBalanceText.text = $"{balance} coins";
+                    });
+                }
+            }
+            else
+            {
+                coinBalanceText.text = "";
             }
         }
 
