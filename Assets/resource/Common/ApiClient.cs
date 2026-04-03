@@ -27,6 +27,12 @@ public class ApiClient : MonoBehaviour
         DontDestroyOnLoad(gameObject);
     }
 
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
+    }
+
     // --- Public API Methods ---
 
     public void Get(string endpoint, Action<string> onSuccess, Action<string> onError = null)

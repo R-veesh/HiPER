@@ -32,6 +32,11 @@ namespace resource.LobbyScene
                 targetPosition = cameraPositions[0].position;
                 targetRotation = cameraPositions[0].rotation;
                 initialized = true;
+                Debug.Log("[LobbyCameraController] Initialized at position 1");
+            }
+            else
+            {
+                Debug.LogError("[LobbyCameraController] No camera positions assigned!");
             }
         }
 
@@ -45,9 +50,19 @@ namespace resource.LobbyScene
             {
                 currentCount = LobbyManager.Instance.connectedPlayerCount;
             }
+            else
+            {
+                // Try to find it if Instance is null (can happen on client)
+                var lobbyManager = FindObjectOfType<LobbyManager>();
+                if (lobbyManager != null)
+                {
+                    currentCount = lobbyManager.connectedPlayerCount;
+                }
+            }
 
             if (currentCount != lastPlayerCount && currentCount > 0)
             {
+                Debug.Log($"[LobbyCameraController] Player count changed: {lastPlayerCount} → {currentCount}");
                 lastPlayerCount = currentCount;
                 SetPreset(currentCount);
             }
@@ -68,6 +83,11 @@ namespace resource.LobbyScene
             {
                 targetPosition = cameraPositions[index].position;
                 targetRotation = cameraPositions[index].rotation;
+                Debug.Log($"[LobbyCameraController] Camera moving to preset {index + 1} for {playerCount} player(s)");
+            }
+            else
+            {
+                Debug.LogWarning($"[LobbyCameraController] Camera position {index} is null!");
             }
         }
     }

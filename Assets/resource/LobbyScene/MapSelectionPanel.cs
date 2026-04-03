@@ -42,6 +42,12 @@ namespace resource.LobbyScene
 
         void Update()
         {
+            if (lobbyManager == null)
+            {
+                lobbyManager = LobbyManager.Instance;
+                if (lobbyManager == null) return;
+            }
+
             if (localPlayer == null)
             {
                 FindLocalPlayer();
@@ -150,7 +156,9 @@ namespace resource.LobbyScene
         int GetMapVotes(int mapIndex)
         {
             int votes = 0;
-            var players = lobbyManager.GetLobbyPlayers();
+            // Use FindObjectsOfType to get all LobbyPlayers on both host and client
+            // The lobbyManager.GetLobbyPlayers() list is only populated on the server
+            var players = FindObjectsOfType<LobbyPlayer>();
             foreach (var player in players)
             {
                 if (player.selectedMapIndex == mapIndex)

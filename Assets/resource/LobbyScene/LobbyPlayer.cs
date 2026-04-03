@@ -12,7 +12,7 @@ namespace resource.LobbyScene
         [SyncVar(hook = nameof(OnReadyStateChanged))]
         public bool isReady;
 
-        [SyncVar]
+        [SyncVar(hook = nameof(OnPlayerNameChanged))]
         public string playerName = "Player";
 
         [SyncVar(hook = nameof(OnPlateIndexChanged))]
@@ -25,11 +25,36 @@ namespace resource.LobbyScene
         public GameObject[] carPrefabs;
 
         private GameObject _previewCar;
+        private bool _hasSpawnedInitialCar = false;
 
         public override void OnStartClient()
         {
             Debug.Log($"[LobbyPlayer] OnStartClient called for {playerName} - isLocalPlayer: {isLocalPlayer}, isServer: {isServer}");
             
+            // Local player sends its name to the server from UserSession
+            if (isLocalPlayer)
+            {
+                string name = "Player";
+                if (UserSession.Instance != null && !string.IsNullOrEmpty(UserSession.Instance.DisplayName))
+                {
+                    name = UserSession.Instance.DisplayName;
+                }
+                else
+                {
+                    // Fallback: generate a random player name
+                    name = $"Player_{Random.Range(1000, 9999)}";
+                    Debug.Log($"[LobbyPlayer] No UserSession display name, using fallback: {name}");
+                }
+                CmdSetPlayerName(name);
+                Debug.Log($"[LobbyPlayer] Sending player name to server: {name}");
+            }
+
+            // Register with LobbyManager so clients can discover all players
+            if (LobbyManager.Instance != null && !LobbyManager.Instance.lobbyPlayers.Contains(this))
+            {
+                LobbyManager.Instance.lobbyPlayers.Add(this);
+            }
+
             // Guard: only spawn in lobby scene
             if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "LobbyScene")
             {
@@ -37,13 +62,26 @@ namespace resource.LobbyScene
                 return;
             }
             
-            // Only server spawns cars - clients will see them via network sync
-            if (isServer)
+            // NOTE: Car spawning is handled by SetPlatePosition() when LobbyManager assigns a plate
+            // Do NOT spawn here to avoid duplicate cars
+        }
+
+        public override void OnStopClient()
+        {
+            // Unregister from LobbyManager
+            if (LobbyManager.Instance != null)
             {
-                // Server spawns immediately for ALL players (including remote ones)
-                SpawnPreviewCar();
+                LobbyManager.Instance.lobbyPlayers.Remove(this);
             }
-            // Clients do NOT spawn cars locally - they receive them from server
+
+            if (_previewCar != null)
+            {
+                if (isServer)
+                    NetworkServer.Destroy(_previewCar);
+                else
+                    Destroy(_previewCar);
+                _previewCar = null;
+            }
         }
 
         public void SetPlatePosition(Transform plateTransform, int index)
@@ -62,9 +100,10 @@ namespace resource.LobbyScene
                 RpcUpdatePosition(plateTransform.position, plateTransform.rotation);
             }
             
-            // Spawn car at new position (server only)
-            if (isServer)
+            // Spawn car at new position (server only) - only spawn once initially
+            if (isServer && !_hasSpawnedInitialCar)
             {
+                _hasSpawnedInitialCar = true;
                 SpawnPreviewCar();
             }
         }
@@ -99,7 +138,8 @@ namespace resource.LobbyScene
                 return;
             }
             
-            Debug.Log($"[LobbyPlayer] SpawnPreviewCar called - isServer: {isServer}, isLocalPlayer: {isLocalPlayer}, carPrefabs: {(carPrefabs != null ? carPrefabs.Length : 0)}");
+            // Log the call stack to help debug duplicate spawns
+            Debug.Log($"[LobbyPlayer] SpawnPreviewCar called for {playerName} - isServer: {isServer}, _hasSpawnedInitialCar: {_hasSpawnedInitialCar}, _previewCar: {(_previewCar != null ? "EXISTS" : "NULL")}");
             
             // Destroy existing preview car
             if (_previewCar != null)
@@ -153,8 +193,9 @@ namespace resource.LobbyScene
                 return;
             }
             
-            // Only server spawns cars
-            if (isServer)
+            // Only server spawns cars, and only if we've already spawned the initial car
+            // (This prevents double-spawn when SyncVar initially syncs)
+            if (isServer && _hasSpawnedInitialCar)
             {
                 SpawnPreviewCar();
             }
@@ -215,6 +256,7 @@ namespace resource.LobbyScene
         [Command]
         public void CmdSetPlayerName(string newName)
         {
+            Debug.Log($"[LobbyPlayer] Server setting player name: '{playerName}' → '{newName}'");
             playerName = newName;
         }
 
@@ -244,16 +286,15 @@ namespace resource.LobbyScene
             Debug.Log($"{playerName} map vote changed to: {newIndex}");
             // UI will update through hook
         }
-
-        public override void OnStopClient()
+        
+        void OnPlayerNameChanged(string oldName, string newName)
         {
-            if (_previewCar != null)
+            Debug.Log($"[LobbyPlayer] Player name changed: '{oldName}' → '{newName}'");
+            
+            // Trigger UI refresh so the name shows up in player plates
+            if (LobbyUI.Instance != null)
             {
-                if (isServer)
-                    NetworkServer.Destroy(_previewCar);
-                else
-                    Destroy(_previewCar);
-                _previewCar = null;
+                LobbyUI.Instance.UpdateUI();
             }
         }
 

@@ -61,8 +61,19 @@ namespace resource.MainMenuScene
 
         public override void OnStartHost()
         {
-            Debug.Log("HOST button pressed – starting host and loading LobbyScene");
+            Debug.Log("[CustomNetworkManager] HOST button pressed – starting host");
+            Debug.Log($"[CustomNetworkManager] Server will listen on port: {GetComponent<Mirror.TelepathyTransport>()?.port ?? 7777}");
             base.OnStartHost();
+            
+            // Verify server actually started
+            if (NetworkServer.active)
+            {
+                Debug.Log("[CustomNetworkManager] ✓ Server is now ACTIVE and listening for connections");
+            }
+            else
+            {
+                Debug.LogError("[CustomNetworkManager] ✗ Server failed to start!");
+            }
             
             // Ensure PlayerDataContainer exists (now a regular MonoBehaviour, not NetworkBehaviour)
             EnsurePlayerDataContainer();
@@ -88,7 +99,8 @@ namespace resource.MainMenuScene
 
         public override void OnClientConnect()
         {
-            Debug.Log("[CustomNetworkManager] Client connected successfully");
+            Debug.Log("[CustomNetworkManager] ✓ Client connected successfully to server!");
+            Debug.Log($"[CustomNetworkManager] Connected to: {NetworkManager.singleton.networkAddress}");
             
             // Call base but don't add player yet - wait for scene to be ready
             base.OnClientConnect();
@@ -302,6 +314,13 @@ namespace resource.MainMenuScene
             // Reset flag so we can add player again on next connection
             playerAddRequested = false;
             Debug.Log("[CustomNetworkManager] Client disconnected, reset playerAddRequested flag");
+            
+            // Log additional info for debugging connection issues
+            if (!NetworkClient.isConnected)
+            {
+                Debug.Log("[CustomNetworkManager] Tip: Make sure the Host is running before clicking Join");
+                Debug.Log("[CustomNetworkManager] Check that no firewall is blocking port 7777");
+            }
             
             base.OnClientDisconnect();
         }

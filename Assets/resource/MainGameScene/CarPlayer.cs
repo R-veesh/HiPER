@@ -7,6 +7,7 @@ public class CarPlayer : NetworkBehaviour
     private PrometeoCarController prometeoController;
     private CarController carController;
     private bool setupDone = false;
+    private bool nameLabelSpawned = false; // Prevent duplicate label creation on host
 
     [SyncVar(hook = nameof(OnGameStartedChanged))]
     public bool gameStarted = false;
@@ -81,8 +82,19 @@ public class CarPlayer : NetworkBehaviour
         StartCoroutine(SpawnNameLabelWhenReady());
     }
 
+    public override void OnStartServer()
+    {
+        base.OnStartServer();
+        // Host also needs floating name labels for all cars (OnStartClient is not called for host-spawned objects)
+        StartCoroutine(SpawnNameLabelWhenReady());
+    }
+
     IEnumerator SpawnNameLabelWhenReady()
     {
+        // Prevent duplicate label creation (host calls both OnStartServer and OnStartClient)
+        if (nameLabelSpawned) yield break;
+        nameLabelSpawned = true;
+
         // Wait until playerName SyncVar is populated
         float timeout = 5f;
         while (string.IsNullOrEmpty(playerName) && timeout > 0f)

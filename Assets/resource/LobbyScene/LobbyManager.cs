@@ -22,7 +22,8 @@ namespace resource.LobbyScene
         [SyncVar] public int currentMapVotes = 0;
 
         [Header("Player Management")]
-        [SyncVar] public int connectedPlayerCount = 0;
+        [SyncVar(hook = nameof(OnPlayerCountChanged))] 
+        public int connectedPlayerCount = 0;
         [SyncVar] public int readyPlayerCount = 0;
 
         public List<LobbyPlayer> lobbyPlayers = new List<LobbyPlayer>();
@@ -32,6 +33,7 @@ namespace resource.LobbyScene
 
         private bool[] usedSpawnPoints;
         private Dictionary<int, int> mapVoteCounts = new Dictionary<int, int>();
+        private HashSet<uint> playersBeingAssigned = new HashSet<uint>(); // Track players being processed
 
         void Awake()
         {
@@ -87,6 +89,25 @@ namespace resource.LobbyScene
         {
             if (Instance == this)
                 Instance = null;
+        }
+        
+        void OnPlayerCountChanged(int oldCount, int newCount)
+        {
+            Debug.Log($"[LobbyManager] Player count changed: {oldCount} → {newCount}");
+            
+            // Notify camera controller to update position
+            var cameraController = FindObjectOfType<LobbyCameraController>();
+            if (cameraController != null)
+            {
+                cameraController.SetPreset(newCount);
+                Debug.Log($"[LobbyManager] Camera updated for {newCount} players");
+            }
+            
+            // Update UI
+            if (LobbyUI.Instance != null)
+            {
+                LobbyUI.Instance.UpdateUI();
+            }
         }
 
         public override void OnStartServer()
@@ -181,7 +202,25 @@ namespace resource.LobbyScene
             {
                 if (!lobbyPlayers.Contains(player))
                 {
+                    // Skip if player is currently being assigned by OnPlayerAdded
+                    var netId = player.GetComponent<NetworkIdentity>();
+                    if (netId != null && playersBeingAssigned.Contains(netId.netId))
+                    {
+                        Debug.Log($"[LobbyManager] Player {player.playerName} is being assigned elsewhere, skipping");
+                        continue;
+                    }
+                    
                     Debug.Log($"[LobbyManager] Adding missing player: {player.playerName}");
+                    
+                    // Skip if player already has a valid plate assignment
+                    if (player.plateIndex >= 0 && player.plateIndex < spawnPoints.Length)
+                    {
+                        Debug.Log($"[LobbyManager] Player already has plate {player.plateIndex}, just adding to list");
+                        usedSpawnPoints[player.plateIndex] = true;
+                        lobbyPlayers.Add(player);
+                        connectedPlayerCount = lobbyPlayers.Count;
+                        continue;
+                    }
                     
                     // Find available spawn point
                     int spawnIndex = GetAvailableSpawnPoint();
@@ -229,12 +268,22 @@ namespace resource.LobbyScene
             }
             
             Debug.Log($"[LobbyManager] Connection identity: {conn.identity.gameObject.name}");
+            
+            // Mark this player as being assigned to prevent race condition with SyncMissingPlayers
+            uint netId = conn.identity.netId;
+            if (playersBeingAssigned.Contains(netId))
+            {
+                Debug.Log($"[LobbyManager] Player {conn.connectionId} is already being assigned, skipping");
+                return;
+            }
+            playersBeingAssigned.Add(netId);
 
             // Find available spawn point
             int spawnIndex = GetAvailableSpawnPoint();
             if (spawnIndex == -1)
             {
                 Debug.LogError("[LobbyManager] No available spawn points!");
+                playersBeingAssigned.Remove(netId);
                 return;
             }
             
@@ -253,10 +302,31 @@ namespace resource.LobbyScene
                 {
                     Debug.Log($"  - {comp.GetType().Name}");
                 }
+                playersBeingAssigned.Remove(netId);
                 return;
             }
             
             Debug.Log($"[LobbyManager] Found LobbyPlayer: {lobbyPlayer.playerName}");
+
+            // Check if player is already in the list (may have been added by SyncMissingPlayers)
+            if (lobbyPlayers.Contains(lobbyPlayer))
+            {
+                Debug.Log($"[LobbyManager] Player already in list, skipping OnPlayerAdded");
+                playersBeingAssigned.Remove(netId);
+                return;
+            }
+            
+            // Check if player already has a valid plate (may have been assigned by SyncMissingPlayers)
+            if (lobbyPlayer.plateIndex >= 0)
+            {
+                Debug.Log($"[LobbyManager] Player already has plate {lobbyPlayer.plateIndex}, just adding to list");
+                lobbyPlayers.Add(lobbyPlayer);
+                playerReadyStates.Add(lobbyPlayer.isReady);
+                connectedPlayerCount = lobbyPlayers.Count;
+                UpdateReadyCount();
+                playersBeingAssigned.Remove(netId);
+                return;
+            }
 
             // Assign spawn point to player
             lobbyPlayer.SetPlatePosition(spawnPoints[spawnIndex], spawnIndex);
@@ -279,6 +349,9 @@ namespace resource.LobbyScene
             UpdateReadyCount();
             
             Debug.Log($"[LobbyManager] Player {conn.connectionId} assigned to plate {spawnIndex + 1}. Total players: {connectedPlayerCount}");
+            
+            // Done assigning
+            playersBeingAssigned.Remove(netId);
             
             // Verify the player was added
             if (lobbyPlayers.Contains(lobbyPlayer))

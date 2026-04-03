@@ -16,6 +16,13 @@ public class AuthManager : MonoBehaviour
             return;
         }
         Instance = this;
+        DontDestroyOnLoad(gameObject);
+    }
+
+    private void OnDestroy()
+    {
+        if (Instance == this)
+            Instance = null;
     }
 
     public void Login(string email, string password, System.Action onSuccess, System.Action<string> onError)
