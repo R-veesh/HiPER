@@ -1,0 +1,146 @@
+const CARD_CATALOG = [
+    {
+        id: 'vx-tempest',
+        name: 'VX-09 Tempest',
+        rarity: 'Epic',
+        price: 1200,
+        image: 'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=1400&q=80&sat=-12',
+    },
+    {
+        id: 'phantom-gt',
+        name: 'Phantom GT',
+        rarity: 'Legendary',
+        price: 2200,
+        image: 'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=1400&q=80&sat=-10',
+    },
+    {
+        id: 'nova-r',
+        name: 'Nova R',
+        rarity: 'Rare',
+        price: 800,
+        image: 'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=1400&q=80&sat=-18',
+    },
+    {
+        id: 'ion-vortex',
+        name: 'ION Vortex',
+        rarity: 'Common',
+        price: 360,
+        image: 'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=1200&q=80&sat=-10',
+    },
+    {
+        id: 'lunar-rift',
+        name: 'Lunar Rift',
+        rarity: 'Epic',
+        price: 1400,
+        image: 'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=1800&q=80&sat=-12',
+    },
+    {
+        id: 'veil-gt',
+        name: 'Veil GT',
+        rarity: 'Rare',
+        price: 980,
+        image: 'https://images.unsplash.com/photo-1493236296276-d17357e28875?auto=format&fit=crop&w=1800&q=80&sat=-14',
+    },
+];
+
+const MAP_CATALOG = [
+    {
+        id: 'neon-city',
+        name: 'Neon City Circuit',
+        region: 'Night Sprint',
+        description: 'Chromed canyon skyline with rain-slick straights, laser chicanes, and billboard glow.',
+        tier: 'Premium',
+        category: 'Urban',
+        rarity: 'Exclusive',
+        price: 480,
+        image: 'https://images.unsplash.com/photo-1492144534655-ae79c964c9d7?auto=format&fit=crop&w=1800&q=80&sat=-14',
+    },
+    {
+        id: 'glacier-run',
+        name: 'Glacier Run',
+        region: 'Arctic Rally',
+        description: 'Frozen switchbacks under auroras with reflective ice plates and snow bursts.',
+        tier: 'Premium',
+        category: 'Mountain',
+        rarity: 'Legendary',
+        price: 620,
+        image: 'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=1800&q=80&sat=-20',
+    },
+    {
+        id: 'harbor-loop',
+        name: 'Harbor Loop',
+        region: 'Coastal Endurance',
+        description: 'Container-yard sweepers, wet asphalt reflections, and skyline cranes overhead.',
+        tier: 'Standard',
+        category: 'Urban',
+        rarity: 'Rare',
+        price: 540,
+        image: 'https://images.unsplash.com/photo-1493236296276-d17357e28875?auto=format&fit=crop&w=2000&q=80&sat=-16',
+    },
+    {
+        id: 'desert-apex',
+        name: 'Desert Apex',
+        region: 'Drift Arena',
+        description: 'Canyon dust plumes, golden-hour S-curves, and wide drift pads for tandem runs.',
+        tier: 'Standard',
+        category: 'Desert',
+        rarity: 'Epic',
+        price: 510,
+        image: 'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=1600&q=80&sat=-14',
+    },
+    {
+        id: 'skyline-ascent',
+        name: 'Skyline Ascent',
+        region: 'Vertical Climb',
+        description: 'Glass skyways, helipad jumps, crosswinds, and thunderstorm lighting passes.',
+        tier: 'Premium',
+        category: 'Mountain',
+        rarity: 'Legendary',
+        price: 760,
+        image: 'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=2000&q=80&sat=-16',
+    },
+    {
+        id: 'circuit-ember',
+        name: 'Circuit Ember',
+        region: 'Volcanic Sprint',
+        description: 'Lava-lit straights, ash haze, and brutal elevation drops through basalt tunnels.',
+        tier: 'Premium',
+        category: 'Volcanic',
+        rarity: 'Exclusive',
+        price: 880,
+        image: 'https://images.unsplash.com/photo-1503736334956-4c8f8e92946d?auto=format&fit=crop&w=1900&q=80&sat=-18',
+    },
+];
+
+const CHAT_CHANNELS = ['#pit-wall', '#race-room', '#lounge', '#card-market', '#events'];
+
+const CHAT_SEED = [
+    {
+        id: 'm-1',
+        user: 'Ava “Driftline”',
+        avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+        time: '21:04',
+        content: 'Telemetry looks clean—apex entry is 2kph hotter tonight.',
+    },
+    {
+        id: 'm-2',
+        user: 'Rex “Turbo”',
+        avatar: 'https://images.unsplash.com/photo-1489515217757-5fd1be406fef?auto=format&fit=crop&w=400&q=80',
+        time: '21:06',
+        content: 'Boost maps swapped. Expect harder shove in 3rd.',
+    },
+    {
+        id: 'm-3',
+        user: 'Lena “Nitro”',
+        avatar: 'https://images.unsplash.com/photo-1524504388940-b1c1722653e1?auto=format&fit=crop&w=400&q=80',
+        time: '21:08',
+        content: 'Lobby reset after quali. Invite sent.',
+    },
+];
+
+module.exports = {
+    CARD_CATALOG,
+    MAP_CATALOG,
+    CHAT_CHANNELS,
+    CHAT_SEED,
+};

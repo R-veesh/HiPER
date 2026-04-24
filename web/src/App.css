@@ -1,1 +1,27 @@
+.pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 14px;
+  border-radius: 9999px;
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  background: rgba(255, 255, 255, 0.04);
+  font-size: 12px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+}
 
+.logo-mark {
+  background: linear-gradient(135deg, #ff2738, #ffffff);
+  color: #0b0b0f;
+  font-weight: 800;
+  border-radius: 12px;
+  padding: 6px 10px;
+  box-shadow: 0 10px 30px rgba(255, 46, 64, 0.3);
+}
+
+.section-shell {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 1.5rem;
+}

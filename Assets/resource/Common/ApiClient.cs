@@ -38,6 +38,11 @@ public class ApiClient : MonoBehaviour
     public void Get(string endpoint, Action<string> onSuccess, Action<string> onError = null)
     {
         StartCoroutine(SendRequest("GET", endpoint, null, onSuccess, onError));
+
+
+
+
+        
     }
 
     public void Post(string endpoint, object body, Action<string> onSuccess, Action<string> onError = null)

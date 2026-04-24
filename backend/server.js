@@ -8,6 +8,7 @@ const profileRoutes = require('./routes/profile');
 const coinRoutes = require('./routes/coins');
 const inventoryRoutes = require('./routes/inventory');
 const spinRoutes = require('./routes/spin');
+const contentRoutes = require('./routes/content');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -38,6 +39,7 @@ app.use('/api/profile', profileRoutes);
 app.use('/api/coins', coinRoutes);
 app.use('/api/inventory', inventoryRoutes);
 app.use('/api/spin', spinRoutes);
+app.use('/api/content', contentRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
