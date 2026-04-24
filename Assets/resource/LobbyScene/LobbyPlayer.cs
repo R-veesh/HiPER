@@ -26,6 +26,7 @@ namespace resource.LobbyScene
 
         private GameObject _previewCar;
         private bool _hasSpawnedInitialCar = false;
+        private bool _isCarSpawningInProgress = false;  // ✓ NEW: Prevent concurrent spawns
 
         public override void OnStartClient()
         {
@@ -74,6 +75,8 @@ namespace resource.LobbyScene
                 LobbyManager.Instance.lobbyPlayers.Remove(this);
             }
 
+            _isCarSpawningInProgress = false;  // ✓ Reset flag on cleanup
+            
             if (_previewCar != null)
             {
                 if (isServer)
@@ -131,10 +134,20 @@ namespace resource.LobbyScene
 
         void SpawnPreviewCar()
         {
+            // ✓ CRITICAL: Prevent concurrent spawn calls from stacking
+            if (_isCarSpawningInProgress)
+            {
+                Debug.LogWarning($"[LobbyPlayer] Car spawn already in progress for {playerName}, skipping duplicate spawn call");
+                return;
+            }
+            
+            _isCarSpawningInProgress = true;
+
             // Guard: only spawn in lobby scene
             if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "LobbyScene")
             {
                 Debug.LogWarning($"[LobbyPlayer] SpawnPreviewCar called outside lobby scene! Aborting to prevent phantom cars.");
+                _isCarSpawningInProgress = false;
                 return;
             }
             
@@ -155,23 +168,30 @@ namespace resource.LobbyScene
             if (carPrefabs == null || carPrefabs.Length == 0)
             {
                 Debug.LogError("[LobbyPlayer] Cannot spawn car - carPrefabs array is empty! Make sure to assign car prefabs in the LobbyPlayer prefab.");
+                _isCarSpawningInProgress = false;
                 return;
             }
             
             if (selectedCarIndex >= carPrefabs.Length)
             {
                 Debug.LogError($"[LobbyPlayer] selectedCarIndex ({selectedCarIndex}) is out of range! Array length: {carPrefabs.Length}");
+                _isCarSpawningInProgress = false;
                 return;
             }
             
             if (carPrefabs[selectedCarIndex] == null)
             {
                 Debug.LogError($"[LobbyPlayer] Car prefab at index {selectedCarIndex} is null!");
+                _isCarSpawningInProgress = false;
                 return;
             }
             
             // Only spawn on server - clients will see it via network sync
-            if (!isServer) return;
+            if (!isServer)
+            {
+                _isCarSpawningInProgress = false;
+                return;
+            }
             
             // Position car on the plate (slightly above)
             Vector3 carPosition = transform.position + Vector3.up * 0.1f;
@@ -180,11 +200,21 @@ namespace resource.LobbyScene
             _previewCar = Instantiate(carPrefabs[selectedCarIndex], carPosition, transform.rotation);
             NetworkServer.Spawn(_previewCar);
             Debug.Log($"[SERVER] Spawned car preview: {carPrefabs[selectedCarIndex].name} for {playerName}");
+            
+            _isCarSpawningInProgress = false;
         }
 
         void OnCarChanged(int oldIndex, int newIndex)
         {
             Debug.Log($"[LobbyPlayer] Car changed from {oldIndex} to {newIndex} for {playerName}");
+            
+            // ✓ CRITICAL: Only spawn if the index ACTUALLY changed (not on initial sync)
+            // Initial sync sends (0, value) or (value, value), we want to skip those
+            if (oldIndex == newIndex)
+            {
+                Debug.Log($"[LobbyPlayer] Ignoring car change hook - oldIndex == newIndex ({oldIndex}), likely initial sync");
+                return;
+            }
             
             // Guard: prevent spawning in game scene
             if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "LobbyScene")
