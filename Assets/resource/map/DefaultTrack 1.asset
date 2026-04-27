@@ -12,7 +12,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 019dbb14c5ee1ff46ae97300324cda5f, type: 3}
   m_Name: DefaultTrack 1
   m_EditorClassIdentifier: Assembly-CSharp::resource.LobbyScene.MapData
-  mapName: Twn
+  mapName: Town
   mapDescription: A racing track
   mapPreview: {fileID: -2050508878, guid: c99e1fb8732adaa4194ce9f88582d858, type: 3}
   sceneName: SecendGameScene

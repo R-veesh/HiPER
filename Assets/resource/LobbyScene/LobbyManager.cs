@@ -595,7 +595,9 @@ namespace resource.LobbyScene
                 // Set the selected map scene
                 if (availableMaps != null && availableMaps.Length > selectedMapIndex && availableMaps[selectedMapIndex] != null)
                 {
-                    networkManager.SetGameScene(availableMaps[selectedMapIndex].sceneName);
+                    MapData selectedMap = availableMaps[selectedMapIndex];
+                    Debug.Log($"[LobbyManager] Starting selected map '{selectedMap.mapName}' with scene '{selectedMap.sceneName}'");
+                    networkManager.SetGameScene(selectedMap.sceneName);
                 }
                 
                 networkManager.LoadGameScene();

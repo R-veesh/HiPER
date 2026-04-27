@@ -14,6 +14,10 @@ namespace resource.LobbyScene
         [Tooltip("Array of 4 Transform presets. Index 0 = 1 player, Index 3 = 4 players.")]
         public Transform[] cameraPositions = new Transform[4];
 
+        [Header("Depth By Player Count")]
+        [Tooltip("When enabled, camera Z depth becomes -playerCount (1=-1, 2=-2, 3=-3, 4=-4).")]
+        public bool usePlayerCountDepth = false;
+
         [Header("Transition")]
         public float transitionSpeed = 3f;
 
@@ -24,15 +28,21 @@ namespace resource.LobbyScene
 
         private void Start()
         {
-            // Default to first preset
+            AudioListenerEnforcer.KeepOnly(GetComponent<AudioListener>());
+
             if (cameraPositions.Length > 0 && cameraPositions[0] != null)
             {
-                transform.position = cameraPositions[0].position;
-                transform.rotation = cameraPositions[0].rotation;
-                targetPosition = cameraPositions[0].position;
-                targetRotation = cameraPositions[0].rotation;
+                int initialPlayerCount = Mathf.Max(GetCurrentPlayerCount(), 1);
+                int initialIndex = Mathf.Clamp(initialPlayerCount - 1, 0, cameraPositions.Length - 1);
+
+                transform.position = cameraPositions[initialIndex].position;
+                transform.rotation = cameraPositions[initialIndex].rotation;
+                targetPosition = cameraPositions[initialIndex].position;
+                targetRotation = cameraPositions[initialIndex].rotation;
+                lastPlayerCount = initialPlayerCount;
                 initialized = true;
-                Debug.Log("[LobbyCameraController] Initialized at position 1");
+                SetPreset(initialPlayerCount);
+                Debug.Log($"[LobbyCameraController] Initialized at preset {initialIndex + 1} for {initialPlayerCount} player(s)");
             }
             else
             {
@@ -45,20 +55,7 @@ namespace resource.LobbyScene
             if (!initialized) return;
 
             // Check for player count changes via LobbyManager
-            int currentCount = 0;
-            if (LobbyManager.Instance != null)
-            {
-                currentCount = LobbyManager.Instance.connectedPlayerCount;
-            }
-            else
-            {
-                // Try to find it if Instance is null (can happen on client)
-                var lobbyManager = FindObjectOfType<LobbyManager>();
-                if (lobbyManager != null)
-                {
-                    currentCount = lobbyManager.connectedPlayerCount;
-                }
-            }
+            int currentCount = GetCurrentPlayerCount();
 
             if (currentCount != lastPlayerCount && currentCount > 0)
             {
@@ -72,16 +69,38 @@ namespace resource.LobbyScene
             transform.rotation = Quaternion.Slerp(transform.rotation, targetRotation, Time.deltaTime * transitionSpeed);
         }
 
+        int GetCurrentPlayerCount()
+        {
+            if (LobbyManager.Instance != null)
+            {
+                return LobbyManager.Instance.connectedPlayerCount;
+            }
+
+            var lobbyManager = FindObjectOfType<LobbyManager>();
+            if (lobbyManager != null)
+            {
+                return lobbyManager.connectedPlayerCount;
+            }
+
+            return 0;
+        }
+
         /// <summary>
         /// Set camera to the preset for the given player count (1-4).
         /// </summary>
         public void SetPreset(int playerCount)
         {
             int index = Mathf.Clamp(playerCount - 1, 0, cameraPositions.Length - 1);
+            int clampedPlayerCount = Mathf.Clamp(playerCount, 1, 4);
 
             if (cameraPositions[index] != null)
             {
                 targetPosition = cameraPositions[index].position;
+                if (usePlayerCountDepth)
+                {
+                    targetPosition.z = -clampedPlayerCount;
+                }
+
                 targetRotation = cameraPositions[index].rotation;
                 Debug.Log($"[LobbyCameraController] Camera moving to preset {index + 1} for {playerCount} player(s)");
             }

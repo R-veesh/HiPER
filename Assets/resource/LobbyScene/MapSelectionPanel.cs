@@ -63,6 +63,10 @@ namespace resource.LobbyScene
             if (NetworkClient.localPlayer != null)
             {
                 localPlayer = NetworkClient.localPlayer.GetComponent<LobbyPlayer>();
+                if (localPlayer != null && lobbyManager != null && lobbyManager.availableMaps != null && lobbyManager.availableMaps.Length > 0)
+                {
+                    currentMapIndex = Mathf.Clamp(localPlayer.selectedMapIndex, 0, lobbyManager.availableMaps.Length - 1);
+                }
             }
         }
 

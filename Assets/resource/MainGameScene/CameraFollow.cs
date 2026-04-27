@@ -9,6 +9,11 @@ public class CameraFollow : MonoBehaviour
 
     private Transform target;
 
+    void Awake()
+    {
+        AudioListenerEnforcer.KeepOnly(GetComponent<AudioListener>());
+    }
+
     void LateUpdate()
     {
         if (target == null) return;

@@ -50,12 +50,6 @@ namespace resource.LobbyScene
                 Debug.Log($"[LobbyPlayer] Sending player name to server: {name}");
             }
 
-            // Register with LobbyManager so clients can discover all players
-            if (LobbyManager.Instance != null && !LobbyManager.Instance.lobbyPlayers.Contains(this))
-            {
-                LobbyManager.Instance.lobbyPlayers.Add(this);
-            }
-
             // Guard: only spawn in lobby scene
             if (UnityEngine.SceneManagement.SceneManager.GetActiveScene().name != "LobbyScene")
             {
@@ -69,12 +63,6 @@ namespace resource.LobbyScene
 
         public override void OnStopClient()
         {
-            // Unregister from LobbyManager
-            if (LobbyManager.Instance != null)
-            {
-                LobbyManager.Instance.lobbyPlayers.Remove(this);
-            }
-
             _isCarSpawningInProgress = false;  // ✓ Reset flag on cleanup
             
             if (_previewCar != null)
@@ -296,16 +284,8 @@ namespace resource.LobbyScene
             if (isReady) return; // Can't change vote when ready
             selectedMapIndex = mapIndex;
             Debug.Log($"{playerName} voted for map index: {mapIndex}");
-            
-            // Notify lobby manager to update map voting - use RPC to ensure server processes it
-            RpcNotifyMapVoteChanged();
-        }
 
-        [ClientRpc]
-        void RpcNotifyMapVoteChanged()
-        {
-            // Only server processes the vote update
-            if (isServer && LobbyManager.Instance != null)
+            if (LobbyManager.Instance != null)
             {
                 LobbyManager.Instance.OnPlayerVotedForMap();
             }
