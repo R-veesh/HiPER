@@ -13,6 +13,10 @@ namespace resource.MainMenuScene
         [Scene] public string gameScene = "MainGameScene";
         private string selectedGameScene = "MainGameScene";
 
+        [Header("Offline Mode")]
+        public MapData[] offlineChallengeMaps;
+        private bool offlineModeActive;
+
         [Header("Lobby Settings")]
         public GameObject lobbyPlayerPrefab;
 
@@ -77,9 +81,19 @@ namespace resource.MainMenuScene
             
             // Ensure PlayerDataContainer exists (now a regular MonoBehaviour, not NetworkBehaviour)
             EnsurePlayerDataContainer();
-            
-            // Automatically transition to LobbyScene after starting host
-            ServerChangeScene(lobbyScene);
+
+            if (offlineModeActive && OfflineRaceConfig.Instance != null && OfflineRaceConfig.Instance.IsOfflineMode)
+            {
+                selectedGameScene = string.IsNullOrEmpty(OfflineRaceConfig.Instance.SelectedSceneName)
+                    ? gameScene
+                    : OfflineRaceConfig.Instance.SelectedSceneName;
+                ServerChangeScene(selectedGameScene);
+            }
+            else
+            {
+                // Automatically transition to LobbyScene after starting host
+                ServerChangeScene(lobbyScene);
+            }
         }
         
         void EnsurePlayerDataContainer()
@@ -181,7 +195,11 @@ namespace resource.MainMenuScene
                 
                 // Let LobbyManager handle the rest
                 // Note: lobbyManager might be null if scene hasn't loaded yet
-                if (lobbyManager != null)
+                if (offlineModeActive)
+                {
+                    SeedOfflinePlayerData(conn);
+                }
+                else if (lobbyManager != null)
                 {
                     lobbyManager.OnPlayerAdded(conn);
                 }
@@ -300,6 +318,74 @@ namespace resource.MainMenuScene
             Debug.Log($"Selected game scene set to: {sceneName}");
         }
 
+        public void StartOfflineGame(MapData mapData, int selectedCarIndex)
+        {
+            if (mapData == null)
+            {
+                Debug.LogError("[CustomNetworkManager] Cannot start offline game - mapData is null");
+                return;
+            }
+
+            OfflineRaceConfig offlineConfig = OfflineRaceConfig.EnsureExists();
+            offlineConfig.Configure(selectedCarIndex, GetOfflineMapIndex(mapData), mapData.mapName, mapData.sceneName);
+
+            ChallengeProgressService.EnsureExists().SetSelectedOfflineCarIndex(selectedCarIndex);
+            offlineModeActive = true;
+            selectedGameScene = mapData.sceneName;
+
+            if (!NetworkServer.active && !NetworkClient.active)
+            {
+                StartHost();
+            }
+            else if (NetworkServer.active)
+            {
+                LoadOfflineChallenge(offlineConfig.SelectedMapIndex);
+            }
+        }
+
+        public bool TryLoadNextOfflineChallenge()
+        {
+            if (!offlineModeActive || OfflineRaceConfig.Instance == null)
+                return false;
+
+            int currentMapIndex = OfflineRaceConfig.Instance.SelectedMapIndex;
+            var progressService = ChallengeProgressService.EnsureExists();
+
+            if (!progressService.TryGetNextChallengeIndex(currentMapIndex, offlineChallengeMaps != null ? offlineChallengeMaps.Length : 0, out int nextMapIndex))
+                return false;
+
+            LoadOfflineChallenge(nextMapIndex);
+            return true;
+        }
+
+        public void LoadOfflineChallenge(int mapIndex)
+        {
+            if (!NetworkServer.active || offlineChallengeMaps == null || mapIndex < 0 || mapIndex >= offlineChallengeMaps.Length)
+                return;
+
+            MapData nextMap = offlineChallengeMaps[mapIndex];
+            if (nextMap == null)
+                return;
+
+            OfflineRaceConfig offlineConfig = OfflineRaceConfig.EnsureExists();
+            offlineConfig.Configure(offlineConfig.SelectedCarIndex, mapIndex, nextMap.mapName, nextMap.sceneName);
+            selectedGameScene = nextMap.sceneName;
+
+            if (PlayerDataContainer.Instance != null)
+            {
+                foreach (var conn in NetworkServer.connections.Values)
+                {
+                    if (conn != null)
+                    {
+                        SeedOfflinePlayerData(conn);
+                        break;
+                    }
+                }
+            }
+
+            ServerChangeScene(selectedGameScene);
+        }
+
         public void LoadGameScene()
         {
             if (NetworkServer.active)
@@ -355,6 +441,10 @@ namespace resource.MainMenuScene
             
             // Reset flag
             playerAddRequested = false;
+            offlineModeActive = false;
+
+            if (OfflineRaceConfig.Instance != null)
+                OfflineRaceConfig.Instance.Clear();
             
             // Stop all network activity
             if (NetworkServer.active)
@@ -368,6 +458,43 @@ namespace resource.MainMenuScene
             
             // Load main menu scene
             UnityEngine.SceneManagement.SceneManager.LoadScene(mainMenuScene);
+        }
+
+        int GetOfflineMapIndex(MapData mapData)
+        {
+            if (offlineChallengeMaps == null || mapData == null)
+                return 0;
+
+            for (int i = 0; i < offlineChallengeMaps.Length; i++)
+            {
+                if (offlineChallengeMaps[i] == mapData)
+                    return i;
+            }
+
+            return 0;
+        }
+
+        void SeedOfflinePlayerData(NetworkConnectionToClient conn)
+        {
+            if (conn == null)
+                return;
+
+            OfflineRaceConfig offlineConfig = OfflineRaceConfig.Instance;
+            PlayerDataContainer container = PlayerDataContainer.Instance ?? FindObjectOfType<PlayerDataContainer>();
+            if (offlineConfig == null || container == null)
+                return;
+
+            string playerName = UserSession.Instance != null && !string.IsNullOrEmpty(UserSession.Instance.DisplayName)
+                ? UserSession.Instance.DisplayName
+                : "Offline Player";
+
+            container.UpsertPlayerData(new PlayerDataContainer.PlayerGameData(
+                conn.connectionId,
+                playerName,
+                offlineConfig.SelectedCarIndex,
+                offlineConfig.SelectedMapIndex,
+                true
+            ));
         }
     }
 }

@@ -27,6 +27,7 @@ namespace resource.LobbyScene
         public Button nextCarButton;
         public Button prevCarButton;
         public Button leaveButton;
+        public Image readyButtonImage;
 
         [Header("UI Text Elements")]
         public TextMeshProUGUI readyButtonText;
@@ -34,6 +35,10 @@ namespace resource.LobbyScene
         public TextMeshProUGUI carSelectionText;
         public TextMeshProUGUI playerCountText;
         public TextMeshProUGUI roomCodeText;
+
+        [Header("Ready Button Sprites")]
+        public Sprite readySprite;
+        public Sprite notReadySprite;
 
         [Header("Coin Display")]
         public TextMeshProUGUI coinBalanceText;
@@ -235,6 +240,12 @@ namespace resource.LobbyScene
             if (readyButtonText != null)
             {
                 readyButtonText.text = localLobbyPlayer.isReady ? "CANCEL READY" : "READY";
+            }
+
+            if (readyButtonImage != null && readySprite != null && notReadySprite != null)
+            {
+                readyButtonImage.sprite = localLobbyPlayer.isReady ? readySprite : notReadySprite;
+                readyButtonImage.color = Color.white;
             }
             
             // Trigger animation when ready state changes

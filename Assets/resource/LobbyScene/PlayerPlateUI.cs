@@ -15,6 +15,11 @@ namespace resource.LobbyScene
         public Image carPreviewImage;
         public GameObject emptySlotOverlay;
 
+        [Header("Ready Sprites")]
+        public Sprite readySprite;
+        public Sprite notReadySprite;
+        public Sprite emptySprite;
+
         [Header("Visual Settings")]
         public Color readyColor = new Color(0.2f, 0.8f, 0.2f, 1f); // Green
         public Color notReadyColor = new Color(0.4f, 0.4f, 0.4f, 1f); // Gray
@@ -67,7 +72,15 @@ namespace resource.LobbyScene
         {
             if (readyIndicator != null)
             {
+                if (readySprite != null && notReadySprite != null)
+                {
+                    readyIndicator.sprite = isReady ? readySprite : notReadySprite;
+                    readyIndicator.color = Color.white;
+                }
+                else
+                {
                 readyIndicator.color = isReady ? readyColor : notReadyColor;
+                }
             }
 
             if (playerStatusText != null)
@@ -112,7 +125,17 @@ namespace resource.LobbyScene
             }
 
             if (readyIndicator != null)
-                readyIndicator.color = emptySlotColor;
+            {
+                if (emptySprite != null)
+                {
+                    readyIndicator.sprite = emptySprite;
+                    readyIndicator.color = Color.white;
+                }
+                else
+                {
+                    readyIndicator.color = emptySlotColor;
+                }
+            }
 
             if (playerPlateBackground != null)
                 playerPlateBackground.color = emptySlotColor;

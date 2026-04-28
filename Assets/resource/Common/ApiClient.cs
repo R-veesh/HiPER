@@ -12,6 +12,24 @@ public class ApiClient : MonoBehaviour
 {
     public static ApiClient Instance { get; private set; }
 
+    public static ApiClient EnsureExists()
+    {
+        UserSession.EnsureExists();
+
+        if (Instance != null)
+            return Instance;
+
+        ApiClient existing = FindObjectOfType<ApiClient>();
+        if (existing != null)
+        {
+            Instance = existing;
+            DontDestroyOnLoad(existing.gameObject);
+            return existing;
+        }
+
+        return UserSession.EnsureExists().GetComponent<ApiClient>();
+    }
+
     [Header("API Configuration")]
     [Tooltip("Base URL of the Express.js backend (e.g. https://your-app.onrender.com)")]
     public string baseUrl = "http://localhost:3000";
@@ -38,11 +56,6 @@ public class ApiClient : MonoBehaviour
     public void Get(string endpoint, Action<string> onSuccess, Action<string> onError = null)
     {
         StartCoroutine(SendRequest("GET", endpoint, null, onSuccess, onError));
-
-
-
-
-        
     }
 
     public void Post(string endpoint, object body, Action<string> onSuccess, Action<string> onError = null)

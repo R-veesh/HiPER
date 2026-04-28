@@ -8,6 +8,24 @@ public class AuthManager : MonoBehaviour
 {
     public static AuthManager Instance { get; private set; }
 
+    public static AuthManager EnsureExists()
+    {
+        UserSession.EnsureExists();
+
+        if (Instance != null)
+            return Instance;
+
+        AuthManager existing = FindObjectOfType<AuthManager>();
+        if (existing != null)
+        {
+            Instance = existing;
+            DontDestroyOnLoad(existing.gameObject);
+            return existing;
+        }
+
+        return UserSession.EnsureExists().GetComponent<AuthManager>();
+    }
+
     private void Awake()
     {
         if (Instance != null && Instance != this)
@@ -27,12 +45,14 @@ public class AuthManager : MonoBehaviour
 
     public void Login(string email, string password, System.Action onSuccess, System.Action<string> onError)
     {
+        UserSession session = UserSession.EnsureExists();
+        ApiClient client = ApiClient.EnsureExists();
         var body = new LoginRequest { email = email, password = password };
-        ApiClient.Instance.Post("/api/auth/login", body,
+        client.Post("/api/auth/login", body,
             (json) =>
             {
                 var response = JsonUtility.FromJson<LoginResponse>(json);
-                UserSession.Instance.SetFromLoginResponse(response);
+                session.SetFromLoginResponse(response);
                 onSuccess?.Invoke();
             },
             (errJson) =>
@@ -47,12 +67,14 @@ public class AuthManager : MonoBehaviour
     public void Register(string email, string password, string displayName,
         System.Action onSuccess, System.Action<string> onError)
     {
+        UserSession session = UserSession.EnsureExists();
+        ApiClient client = ApiClient.EnsureExists();
         var body = new RegisterRequest { email = email, password = password, displayName = displayName };
-        ApiClient.Instance.Post("/api/auth/register", body,
+        client.Post("/api/auth/register", body,
             (json) =>
             {
                 var response = JsonUtility.FromJson<LoginResponse>(json);
-                UserSession.Instance.SetFromLoginResponse(response);
+                session.SetFromLoginResponse(response);
                 onSuccess?.Invoke();
             },
             (errJson) =>
@@ -66,11 +88,12 @@ public class AuthManager : MonoBehaviour
 
     public void RefreshBalance(System.Action<int> onSuccess = null)
     {
-        ApiClient.Instance.Get("/api/coins/balance",
+        UserSession session = UserSession.EnsureExists();
+        ApiClient.EnsureExists().Get("/api/coins/balance",
             (json) =>
             {
                 var data = JsonUtility.FromJson<BalanceResponse>(json);
-                UserSession.Instance.CoinBalance = data.coinBalance;
+                session.CoinBalance = data.coinBalance;
                 onSuccess?.Invoke(data.coinBalance);
             }
         );
@@ -78,6 +101,6 @@ public class AuthManager : MonoBehaviour
 
     public void Logout()
     {
-        UserSession.Instance.Clear();
+        UserSession.EnsureExists().Clear();
     }
 }

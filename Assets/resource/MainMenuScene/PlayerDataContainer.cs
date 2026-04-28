@@ -116,7 +116,25 @@ namespace resource.MainMenuScene
                 }
             }
         }
-        
+
+        public void UpsertPlayerData(PlayerGameData playerData)
+        {
+            if (!NetworkServer.active) return;
+
+            for (int i = 0; i < playerDataList.Count; i++)
+            {
+                if (playerDataList[i].connectionId == playerData.connectionId)
+                {
+                    playerDataList[i] = playerData;
+                    Debug.Log($"[PlayerDataContainer] Updated data for player: {playerData.playerName} (Conn: {playerData.connectionId})");
+                    return;
+                }
+            }
+
+            playerDataList.Add(playerData);
+            Debug.Log($"[PlayerDataContainer] Added data for player: {playerData.playerName} (Conn: {playerData.connectionId})");
+        }
+         
         /// <summary>
         /// Get all player data
         /// </summary>

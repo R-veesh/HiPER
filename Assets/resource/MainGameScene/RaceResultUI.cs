@@ -2,6 +2,7 @@ using UnityEngine;
 using UnityEngine.UI;
 using System.Collections.Generic;
 using Mirror;
+using resource.MainMenuScene;
 
 /// <summary>
 /// Attach to a Canvas in the game scene.
@@ -14,9 +15,12 @@ public class RaceResultUI : MonoBehaviour
     public Text resultText;       // shows finish entries as they arrive
     public Text statusText;       // "YOU WIN!" / "DEFEAT" / "Race Over"
     public Button returnButton;   // back to lobby
+    public Button nextChallengeButton;
+    public Text progressText;
 
     private List<string> finishEntries = new List<string>();
     private bool localPlayerFinished = false;
+    private int localFinishPosition = -1;
 
     void Awake()
     {
@@ -34,6 +38,12 @@ public class RaceResultUI : MonoBehaviour
         }
         else
             Debug.LogWarning("[RaceResultUI] returnButton is NOT assigned in Inspector!");
+
+        if (nextChallengeButton != null)
+        {
+            nextChallengeButton.onClick.AddListener(OnNextChallengeClicked);
+            nextChallengeButton.gameObject.SetActive(false);
+        }
 
         if (resultText == null)
             Debug.LogError("[RaceResultUI] resultText is NOT assigned in Inspector!");
@@ -64,6 +74,7 @@ public class RaceResultUI : MonoBehaviour
         {
             // This client's player just finished — show the panel NOW
             localPlayerFinished = true;
+            localFinishPosition = position;
 
             if (resultPanel != null)
                 resultPanel.SetActive(true);
@@ -82,6 +93,8 @@ public class RaceResultUI : MonoBehaviour
             // Show return button immediately for the finisher
             if (returnButton != null)
                 returnButton.gameObject.SetActive(true);
+
+            UpdateOfflineButtons();
         }
         else if (localPlayerFinished)
         {
@@ -111,6 +124,9 @@ public class RaceResultUI : MonoBehaviour
 
         if (returnButton != null)
             returnButton.gameObject.SetActive(true);
+
+        ApplyOfflineProgressIfNeeded();
+        UpdateOfflineButtons();
     }
 
     void OnReturnClicked()
@@ -133,5 +149,49 @@ public class RaceResultUI : MonoBehaviour
             else if (NetworkClient.isConnected)
                 NetworkManager.singleton.StopClient();
         }
+    }
+
+    void OnNextChallengeClicked()
+    {
+        var netManager = NetworkManager.singleton as CustomNetworkManager;
+        if (netManager != null && netManager.TryLoadNextOfflineChallenge())
+        {
+            if (resultPanel != null)
+                resultPanel.SetActive(false);
+        }
+    }
+
+    void ApplyOfflineProgressIfNeeded()
+    {
+        OfflineRaceConfig config = OfflineRaceConfig.Instance;
+        if (config == null || !config.IsOfflineMode || config.HasAppliedResult)
+            return;
+
+        bool won = localFinishPosition == 1;
+        string result = ChallengeProgressService.EnsureExists().ApplyOfflineRaceResult(config.SelectedMapIndex, won);
+        config.MarkResultApplied();
+
+        if (progressText != null)
+            progressText.text = result;
+    }
+
+    void UpdateOfflineButtons()
+    {
+        OfflineRaceConfig config = OfflineRaceConfig.Instance;
+        CustomNetworkManager netManager = NetworkManager.singleton as CustomNetworkManager;
+
+        if (nextChallengeButton == null)
+            return;
+
+        bool canShowNext = config != null && config.IsOfflineMode && localFinishPosition == 1 && netManager != null;
+        if (canShowNext)
+        {
+            canShowNext = ChallengeProgressService.EnsureExists().TryGetNextChallengeIndex(
+                config.SelectedMapIndex,
+                netManager.offlineChallengeMaps != null ? netManager.offlineChallengeMaps.Length : 0,
+                out _);
+        }
+
+        nextChallengeButton.gameObject.SetActive(canShowNext);
     }
 }

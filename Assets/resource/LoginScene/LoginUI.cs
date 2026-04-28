@@ -41,6 +41,10 @@ public class LoginUI : MonoBehaviour
 
     private void Start()
     {
+        UserSession.EnsureExists();
+        AuthManager.EnsureExists();
+        ApiClient.EnsureExists();
+
         ShowLoginPanel();
 
         loginButton.onClick.AddListener(OnLoginClicked);
@@ -83,7 +87,7 @@ public class LoginUI : MonoBehaviour
         SetLoading(true);
         loginErrorText.text = "";
 
-        AuthManager.Instance.Login(email, password,
+        AuthManager.EnsureExists().Login(email, password,
             () =>
             {
                 SetLoading(false);
@@ -126,7 +130,7 @@ public class LoginUI : MonoBehaviour
         SetLoading(true);
         registerErrorText.text = "";
 
-        AuthManager.Instance.Register(email, password, name,
+        AuthManager.EnsureExists().Register(email, password, name,
             () =>
             {
                 SetLoading(false);
