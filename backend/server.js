@@ -11,13 +11,16 @@ const spinRoutes = require('./routes/spin');
 const contentRoutes = require('./routes/content');
 
 const app = express();
-const PORT = process.env.PORT || 3000;
+const PORT = 3000;
 
 // Security middleware
 app.use(helmet());
 
 // CORS configuration
-const allowedOrigins = (process.env.CORS_ORIGINS || '').split(',').map(s => s.trim()).filter(Boolean);
+const allowedOrigins = (process.env.CORS_ORIGINS || 'http://localhost:5000,http://127.0.0.1:5000')
+    .split(',')
+    .map(s => s.trim())
+    .filter(Boolean);
 app.use(cors({
     origin: (origin, callback) => {
         // Allow requests with no origin (mobile apps, curl, etc.)

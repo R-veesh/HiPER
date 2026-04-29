@@ -24,20 +24,22 @@ namespace resource.MainMenuScene
         public Button refreshButton;
         public ProfileUI profileEditPanel;
 
+        void Awake()
+        {
+            ResolveReferences();
+            WireButtons();
+        }
+
         void Start()
         {
-            if (editButton != null)
-                editButton.onClick.AddListener(OpenEdit);
-
-            if (closeButton != null)
-                closeButton.onClick.AddListener(Hide);
-
-            if (refreshButton != null)
-                refreshButton.onClick.AddListener(Refresh);
+            ResolveReferences();
         }
 
         public void Show()
         {
+            ResolveReferences();
+            WireButtons();
+
             if (panel != null)
                 panel.SetActive(true);
 
@@ -94,8 +96,64 @@ namespace resource.MainMenuScene
 
         void OpenEdit()
         {
+            ResolveReferences();
+
             if (profileEditPanel != null)
+            {
+                Hide();
                 profileEditPanel.Show();
+            }
+            else if (statusText != null)
+            {
+                statusText.text = "Profile edit panel not assigned";
+            }
+        }
+
+        void ResolveReferences()
+        {
+            if (panel == null)
+                panel = gameObject;
+
+            if (profileEditPanel == null)
+            {
+#if UNITY_6000_0_OR_NEWER
+                profileEditPanel = FindFirstObjectByType<ProfileUI>(FindObjectsInactive.Include);
+#else
+                profileEditPanel = FindObjectOfType<ProfileUI>(true);
+#endif
+            }
+
+            if (profileEditPanel == null)
+            {
+#if UNITY_6000_0_OR_NEWER
+                MainMenuManager mainMenuManager = FindFirstObjectByType<MainMenuManager>(FindObjectsInactive.Include);
+#else
+                MainMenuManager mainMenuManager = FindObjectOfType<MainMenuManager>(true);
+#endif
+                if (mainMenuManager != null)
+                    profileEditPanel = mainMenuManager.profileEditPanel;
+            }
+        }
+
+        void WireButtons()
+        {
+            if (editButton != null)
+            {
+                editButton.onClick.RemoveListener(OpenEdit);
+                editButton.onClick.AddListener(OpenEdit);
+            }
+
+            if (closeButton != null)
+            {
+                closeButton.onClick.RemoveListener(Hide);
+                closeButton.onClick.AddListener(Hide);
+            }
+
+            if (refreshButton != null)
+            {
+                refreshButton.onClick.RemoveListener(Refresh);
+                refreshButton.onClick.AddListener(Refresh);
+            }
         }
 
         static int GetOwnedCarCount(UserSession session)

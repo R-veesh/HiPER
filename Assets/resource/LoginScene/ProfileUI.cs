@@ -18,23 +18,32 @@ public class ProfileUI : MonoBehaviour
     public Button closeButton;
     public GameObject panel;
 
+    void Awake()
+    {
+        if (panel == null)
+            panel = gameObject;
+    }
+
     private void Start()
     {
         UserSession.EnsureExists();
         AuthManager.EnsureExists();
         ApiClient.EnsureExists();
 
-        saveButton.onClick.AddListener(OnSaveClicked);
-        if (closeButton != null) closeButton.onClick.AddListener(() => panel.SetActive(false));
+        WireButtons();
     }
 
     public void Show()
     {
         UserSession session = UserSession.EnsureExists();
         ApiClient client = ApiClient.EnsureExists();
+        WireButtons();
 
-        panel.SetActive(true);
-        statusText.text = "";
+        if (panel != null)
+            panel.SetActive(true);
+
+        if (statusText != null)
+            statusText.text = "";
 
         if (!session.IsLoggedIn) return;
 
@@ -43,13 +52,38 @@ public class ProfileUI : MonoBehaviour
             (json) =>
             {
                 var profile = JsonUtility.FromJson<ProfileData>(json);
-                displayNameField.text = profile.displayName;
+                if (displayNameField != null) displayNameField.text = profile.displayName;
                 if (profileImageUrlField != null) profileImageUrlField.text = profile.profilePicUrl;
-                ageField.text = profile.age.ToString();
-                bioField.text = profile.bio;
+                if (ageField != null) ageField.text = profile.age.ToString();
+                if (bioField != null) bioField.text = profile.bio;
             },
-            (err) => statusText.text = "Failed to load profile"
+            (err) =>
+            {
+                if (statusText != null)
+                    statusText.text = "Failed to load profile";
+            }
         );
+    }
+
+    void WireButtons()
+    {
+        if (saveButton != null)
+        {
+            saveButton.onClick.RemoveListener(OnSaveClicked);
+            saveButton.onClick.AddListener(OnSaveClicked);
+        }
+
+        if (closeButton != null)
+        {
+            closeButton.onClick.RemoveListener(ClosePanel);
+            closeButton.onClick.AddListener(ClosePanel);
+        }
+    }
+
+    void ClosePanel()
+    {
+        if (panel != null)
+            panel.SetActive(false);
     }
 
     private void OnSaveClicked()

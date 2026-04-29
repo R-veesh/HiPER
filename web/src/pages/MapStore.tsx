@@ -14,10 +14,11 @@ const featuredMapImg =
 type Filter = 'all' | 'owned' | 'locked' | 'premium' | 'urban' | 'night' | 'desert' | 'mountain'
 
 export const MapStore = () => {
-  const { coins, maps, buyMapPack, mapCatalog } = useGame()
+  const { coins, maps, buyMapPack, mapCatalog, isAuthenticated } = useGame()
   const [filter, setFilter] = useState<Filter>('all')
   const [query, setQuery] = useState('')
   const [activeMap, setActiveMap] = useState<MapPack | null>(null)
+  const [notice, setNotice] = useState<{ type: 'success' | 'error'; message: string } | null>(null)
 
   const filtered = useMemo(() => {
     return mapCatalog.filter((map) => {
@@ -26,7 +27,7 @@ export const MapStore = () => {
       if (filter === 'locked' && owned) return false
       if (filter === 'premium' && map.tier !== 'Premium') return false
       if (filter === 'urban' && map.category !== 'Urban') return false
-      if (filter === 'night' && map.region.toLowerCase().includes('night') === false) return false
+      if (filter === 'night' && !(map.category === 'Night' || map.region.toLowerCase().includes('night'))) return false
       if (filter === 'desert' && map.category !== 'Desert') return false
       if (filter === 'mountain' && map.category !== 'Mountain') return false
       if (query && !map.name.toLowerCase().includes(query.toLowerCase()) && !map.region.toLowerCase().includes(query.toLowerCase())) return false
@@ -36,8 +37,15 @@ export const MapStore = () => {
 
   const ownedCount = maps.length
 
-  const buy = (pack: MapPack) => {
-    void buyMapPack(pack)
+  const buy = async (pack: MapPack) => {
+    setNotice(null)
+    try {
+      await buyMapPack(pack)
+      setNotice({ type: 'success', message: `${pack.name} unlocked.` })
+    } catch (error) {
+      const message = error instanceof Error ? error.message : 'Unable to unlock this map right now.'
+      setNotice({ type: 'error', message })
+    }
   }
 
   return (
@@ -136,6 +144,22 @@ export const MapStore = () => {
       </div>
 
       <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+        {!isAuthenticated ? (
+          <div className="md:col-span-2 xl:col-span-3 rounded-xl border border-amber-300/40 bg-amber-300/10 px-4 py-3 text-sm text-amber-100">
+            Log in to unlock map packs.
+          </div>
+        ) : null}
+        {notice ? (
+          <div
+            className={`md:col-span-2 xl:col-span-3 rounded-xl border px-4 py-3 text-sm ${
+              notice.type === 'success'
+                ? 'border-emerald-300/40 bg-emerald-300/10 text-emerald-100'
+                : 'border-rose-300/40 bg-rose-300/10 text-rose-100'
+            }`}
+          >
+            {notice.message}
+          </div>
+        ) : null}
         <AnimatePresence>
           {filtered.map((pack) => {
             const owned = maps.some((m) => m.id === pack.id)
@@ -178,11 +202,11 @@ export const MapStore = () => {
                 </div>
                 <motion.button
                   whileTap={{ scale: 0.97 }}
-                  disabled={owned || !affordable}
-                  onClick={() => buy(pack)}
+                  disabled={!isAuthenticated || owned || !affordable}
+                   onClick={() => void buy(pack)}
                 className="neon-button relative mt-3 w-full rounded-xl bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 px-4 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
-              >
-                  {owned ? 'In rotation' : affordable ? 'Unlock track' : 'Insufficient coins'}
+               >
+                  {owned ? 'In rotation' : !isAuthenticated ? 'Login required' : affordable ? 'Unlock track' : 'Insufficient coins'}
                 </motion.button>
               </motion.div>
             )
@@ -243,15 +267,17 @@ export const MapStore = () => {
                   </motion.button>
                   <motion.button
                     whileTap={{ scale: 0.98 }}
-                    disabled={maps.some((m) => m.id === activeMap.id) || coins < activeMap.price}
+                    disabled={!isAuthenticated || maps.some((m) => m.id === activeMap.id) || coins < activeMap.price}
                     onClick={() => {
-                      buy(activeMap)
+                      void buy(activeMap)
                       setActiveMap(null)
                     }}
                     className="neon-button rounded-xl bg-gradient-to-r from-rose-500 via-red-500 to-orange-400 px-5 py-2 text-sm font-semibold text-white disabled:cursor-not-allowed disabled:opacity-60"
                   >
                     {maps.some((m) => m.id === activeMap.id)
                       ? 'Unlocked'
+                      : !isAuthenticated
+                        ? 'Login required'
                       : coins >= activeMap.price
                         ? 'Unlock now'
                         : 'Insufficient coins'}

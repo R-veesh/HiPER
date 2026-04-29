@@ -1,7 +1,7 @@
 import { useEffect } from 'react'
 import gsap from 'gsap'
 import { ScrollTrigger } from 'gsap/ScrollTrigger'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, Navigate } from 'react-router-dom'
 import './App.css'
 import { Navbar } from './components/Navbar'
 import { Footer } from './components/Footer'
@@ -56,6 +56,7 @@ function App() {
           <Route path="/login" element={<Login />} />
           <Route path="/register" element={<Register />} />
           <Route path="/profile" element={<Profile />} />
+          <Route path="/store" element={<Navigate to="/coin-store" replace />} />
           <Route path="/coin-store" element={<CoinStore />} />
           <Route path="/spin" element={<SpinWheel />} />
           <Route path="/community" element={<CommunityChat />} />

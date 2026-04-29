@@ -208,3 +208,40 @@ Quick verify:
 - MainMenu profile open කරද්දී No user session නැතුව DisplayName/Email populate වෙන්න ඕන
 ඔයාට දැන් කරලා බලලා result කියන්න.  
 එහෙමත් නැත්නම් next step එකට මම exact Inspector-by-Inspector troubleshoot checklist (10 checks) දෙන්නම්.  
+
+
+//////////////////////////////
+
+I found another likely cause and fixed it.
+What was wrong:
+- if ProfileSummaryPanel or ProfileUI component is on an object that starts disabled, Start() may not wire the button before you try to use it
+- also profileEditPanel could still be missing from ProfileSummaryPanel, even if it exists on MainMenuManager
+I fixed that by updating:
+- Assets/resource/MainMenuScene/ProfileSummaryPanel.cs
+  - Show() now re-wires buttons every time
+  - it now also tries MainMenuManager.profileEditPanel if direct lookup fails
+- Assets/resource/LoginScene/ProfileUI.cs
+  - Show() now re-wires save/close buttons too
+  - safer close handling added
+Now test again:
+- open profile summary
+- click Edit
+If it still does nothing, then the real scene problem is almost certainly:
+- there is no ProfileUI component anywhere in MainMenuScene, or
+- the Edit button reference itself is not assigned in ProfileSummaryPanel
+Check these in Unity Inspector:
+- on the object with ProfileSummaryPanel:
+  - editButton must be assigned
+  - panel should be assigned
+- in MainMenuManager:
+  - profileEditPanel should be assigned to the object that has ProfileUI
+- in MainMenuScene:
+  - there must be one object with ProfileUI
+Best quick fix in Unity:
+1. Create a ProfileEditPanel GameObject in MainMenuScene
+2. Attach ProfileUI
+3. Assign its panel, inputs, buttons, status text
+4. Drag that ProfileUI component into:
+   - MainMenuManager.profileEditPanel
+   - ProfileSummaryPanel.profileEditPanel
+If you want, next I can make a stronger fix: auto-create a simple edit popup from code when ProfileUI is missing.

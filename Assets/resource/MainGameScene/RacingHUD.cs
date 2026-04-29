@@ -2,22 +2,6 @@ using UnityEngine;
 using UnityEngine.UI;
 using TMPro;
 
-/// <summary>
-/// Main gameplay HUD overlay (Asphalt-style).
-/// Attach to a Screen Space - Overlay Canvas in the game scene.
-///
-/// Hierarchy (create in Inspector):
-///   RacingHUD_Canvas  (Screen Space - Overlay, Sort Order 1)
-///   ├── TopBar  (Panel, anchored top-stretch, height ~80px)
-///   │   ├── PositionText    (TMP)  "1/6 POS"   ← top-left
-///   │   ├── SpeedText       (TMP)  "180"        ← top-center
-///   │   ├── SpeedUnitText   (TMP)  "KM/H"       ← below speed
-///   │   ├── LapText         (TMP)  "2/3 LAP"   ← top-right
-///   │   └── PauseButton     (Button) ← top-right corner
-///   ├── SpeedBarBG  (Image, spped bar)
-///   │   └── SpeedBarFill  (Image, type=Filled, Radial180)
-///   └── GearText (TMP) "3"  ← near speed bar
-/// </summary>
 public class RacingHUD : MonoBehaviour
 {
     [Header("UI References")]
@@ -32,11 +16,19 @@ public class RacingHUD : MonoBehaviour
     public Image speedBarFill;             // Filled image (Radial360 or Horizontal)
     public Gradient speedBarGradient;      // Color transitions: green → yellow → red
 
+    [Header("Speed Cluster")]
+    public RectTransform speedClusterNeedle; // Optional: assign needle transform for analog meter
+    public float speedClusterMinAngle = -120f;
+    public float speedClusterMaxAngle = 120f;
+    public float speedClusterMaxSpeed = 200f;
+    public bool speedClusterLeftToRight = true;
+
     [Header("Pause Menu")]
     public GameObject pausePanel;          // optional overlay panel to show when paused
 
     [Header("Settings")]
     public bool showGear = true;
+    public RacingNavigationMap navigationMap;
 
     private PrometeoCarController localPrometeo;
     private CarController localCarController;
@@ -48,6 +40,13 @@ public class RacingHUD : MonoBehaviour
 
     void Awake()
     {
+        if (speedClusterNeedle == null)
+        {
+            Transform needle = transform.Find("SpeedClustuer");
+            if (needle == null) needle = transform.Find("SpeedCluster");
+            if (needle != null) speedClusterNeedle = needle as RectTransform;
+        }
+
         // BUG FIX #1: Validate Inspector references on startup so the user sees
         // clear error messages instead of silently blank HUD
         if (positionText == null) Debug.LogError("[RacingHUD] positionText is NOT assigned in Inspector!");
@@ -116,6 +115,7 @@ public class RacingHUD : MonoBehaviour
 
         UpdateSpeed();
         UpdateSpeedBar();
+        UpdateSpeedCluster();
         UpdateGear();
         UpdatePosition();
         UpdateLap();
@@ -156,6 +156,8 @@ public class RacingHUD : MonoBehaviour
                 initialized = true;
                 string controllerType = localPrometeo != null ? "PrometeoCarController" : "CarController";
                 Debug.Log($"[RacingHUD] Local car found: {cp.gameObject.name} using {controllerType} — HUD active");
+                if (navigationMap != null)
+                    navigationMap.SetLocalTarget(cp.transform);
                 return;
             }
         }
@@ -211,6 +213,21 @@ public class RacingHUD : MonoBehaviour
 
         if (speedBarGradient != null)
             speedBarFill.color = speedBarGradient.Evaluate(targetFill);
+    }
+
+    void UpdateSpeedCluster()
+    {
+        if (speedClusterNeedle == null) return;
+
+        float maxSpd = speedClusterMaxSpeed;
+        if (maxSpd <= 0f) maxSpd = 200f;
+
+        float t = Mathf.Clamp01(GetCurrentSpeed() / maxSpd);
+        float angle = speedClusterLeftToRight
+            ? Mathf.Lerp(speedClusterMinAngle, speedClusterMaxAngle, t)
+            : Mathf.Lerp(speedClusterMaxAngle, speedClusterMinAngle, t);
+
+        speedClusterNeedle.localRotation = Quaternion.Euler(0f, 0f, angle);
     }
 
     void UpdateGear()
