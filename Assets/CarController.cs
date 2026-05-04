@@ -5,7 +5,7 @@ using UnityEngine;
 public class CarController : MonoBehaviour
 {
     [Header("Car Setup")]
-    public float maxSpeed = 180f;
+    public float maxSpeed = 300f;
     public float acceleration = 300f;
     public float brakeForce = 800f;
     public float maxSteerAngle = 30f;
@@ -35,6 +35,7 @@ public class CarController : MonoBehaviour
 
     [Header("Sound")]
     public AudioSource engineSound;
+    public AudioClip fallbackEngineClip;
 
     [Header("Drift")]
     public bool driftEnabled = false;
@@ -55,6 +56,8 @@ public class CarController : MonoBehaviour
     {
         rb = GetComponent<Rigidbody>();
         rb.centerOfMass = centerOfMass;
+
+        EnsureEngineSoundSetup();
 
         gearSpeed = new float[totalGears + 1];
         float gearStep = maxSpeed / totalGears;
@@ -159,6 +162,28 @@ public class CarController : MonoBehaviour
         float rpmNormalized = engineRPM / maxRPM;
         engineSound.pitch = Mathf.Lerp(0.9f, 2f, rpmNormalized);
         engineSound.volume = Mathf.Lerp(0.4f, 1f, rpmNormalized);
+        if (engineSound.clip != null && !engineSound.isPlaying)
+            engineSound.Play();
+    }
+
+    void EnsureEngineSoundSetup()
+    {
+        if (engineSound == null)
+            engineSound = GetComponent<AudioSource>();
+
+        if (engineSound == null)
+            engineSound = gameObject.AddComponent<AudioSource>();
+
+        if (engineSound.clip == null)
+            engineSound.clip = fallbackEngineClip;
+
+        engineSound.loop = true;
+        engineSound.playOnAwake = false;
+        engineSound.spatialBlend = 1f;
+        engineSound.rolloffMode = AudioRolloffMode.Logarithmic;
+        engineSound.minDistance = 2f;
+        engineSound.maxDistance = 80f;
+        engineSound.dopplerLevel = 0f;
     }
 
     // ================= DRIVE MODES =================

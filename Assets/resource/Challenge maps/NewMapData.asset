@@ -14,7 +14,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::resource.LobbyScene.MapData
   mapName: 1
   mapDescription: A racing track
-  mapPreview: {fileID: 493160996, guid: 630e03a078db3f34884a4201f7f2cf21, type: 3}
+  mapPreview: {fileID: 1622580667, guid: a4ddd27f81118734698b38f4be6dbac8, type: 3}
   sceneName: MainGameScene
   difficulty: 0
   laps: 1

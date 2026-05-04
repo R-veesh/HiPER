@@ -20,7 +20,7 @@ public class RacingHUD : MonoBehaviour
     public RectTransform speedClusterNeedle; // Optional: assign needle transform for analog meter
     public float speedClusterMinAngle = -120f;
     public float speedClusterMaxAngle = 120f;
-    public float speedClusterMaxSpeed = 200f;
+    public float speedClusterMaxSpeed = 300f;
     public bool speedClusterLeftToRight = true;
 
     [Header("Pause Menu")]
@@ -180,7 +180,7 @@ public class RacingHUD : MonoBehaviour
             return localPrometeo.maxSpeed;
         if (localCarController != null)
             return localCarController.maxSpeed;
-        return 180f;
+        return 300f;
     }
 
     void UpdateSpeed()
@@ -203,7 +203,7 @@ public class RacingHUD : MonoBehaviour
         }
 
         float maxSpd = GetMaxSpeed();
-        if (maxSpd <= 0f) maxSpd = 180f;
+        if (maxSpd <= 0f) maxSpd = 300f;
 
         float currentSpeed = GetCurrentSpeed();
         float targetFill = Mathf.Clamp01(currentSpeed / maxSpd);
@@ -220,7 +220,7 @@ public class RacingHUD : MonoBehaviour
         if (speedClusterNeedle == null) return;
 
         float maxSpd = speedClusterMaxSpeed;
-        if (maxSpd <= 0f) maxSpd = 200f;
+        if (maxSpd <= 0f) maxSpd = 300f;
 
         float t = Mathf.Clamp01(GetCurrentSpeed() / maxSpd);
         float angle = speedClusterLeftToRight

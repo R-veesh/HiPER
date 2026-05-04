@@ -14,8 +14,8 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::resource.LobbyScene.MapData
   mapName: 2
   mapDescription: A racing track
-  mapPreview: {fileID: 1622580667, guid: a4ddd27f81118734698b38f4be6dbac8, type: 3}
-  sceneName: MainGameScene
+  mapPreview: {fileID: -2050508878, guid: c99e1fb8732adaa4194ce9f88582d858, type: 3}
+  sceneName: SecendGameScene
   difficulty: 0
   laps: 1
   raceTimeLimit: 600

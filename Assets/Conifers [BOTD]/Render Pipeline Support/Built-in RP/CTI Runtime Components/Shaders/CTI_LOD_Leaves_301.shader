@@ -98,7 +98,6 @@ SubShader {
 		#pragma target 3.0
 		#pragma multi_compile_instancing
 
-		#pragma multi_compile __ LOD_FADE_CROSSFADE LOD_FADE_PERCENTAGE
 		// Use Wind from Script
 		#pragma shader_feature _METALLICGLOSSMAP
 		// LeafTurbulence
@@ -167,10 +166,8 @@ SubShader {
 // nolightmap
 		#pragma target 3.0
 
-	//	Unity < 2018.2		
-	//	#pragma multi_compile  __ LOD_FADE_CROSSFADE LOD_FADE_PERCENTAGE
 	//	Unity >= 2018.2
-		#pragma multi_compile_vertex LOD_FADE_PERCENTAGE
+		#pragma multi_compile_vertex LOD_FADE_CROSSFADE LOD_FADE_PERCENTAGE
 
 		// Use Wind from Script
 		#pragma shader_feature _METALLICGLOSSMAP
@@ -285,10 +282,8 @@ SubShader {
 		#pragma fragment frag_surf
 		#pragma target 3.0
 
-	//	Unity < 2018.2		
-	//	#pragma multi_compile  __ LOD_FADE_CROSSFADE LOD_FADE_PERCENTAGE
 	//	Unity >= 2018.2
-		#pragma multi_compile_vertex LOD_FADE_PERCENTAGE
+		#pragma multi_compile_vertex LOD_FADE_CROSSFADE LOD_FADE_PERCENTAGE
 
 		#pragma multi_compile_instancing
 		//#if UNITY_VERSION >= 550
@@ -310,7 +305,6 @@ SubShader {
 		#include "UnityCG.cginc"
 		#include "Lighting.cginc"
 
-		#define UNITY_PASS_SHADOWCASTER
 		// #include "UnityBuiltin3xTreeLibrary.cginc" // We can not do this as we want instancing
 		#define USE_VFACE
 		#define LEAFTUMBLING

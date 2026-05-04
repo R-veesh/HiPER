@@ -14,9 +14,14 @@ public class RaceResultUI : MonoBehaviour
     public GameObject resultPanel;
     public Text resultText;       // shows finish entries as they arrive
     public Text statusText;       // "YOU WIN!" / "DEFEAT" / "Race Over"
+    public Image resultImage;     // optional image to show win/defeat art
     public Button returnButton;   // back to lobby
     public Button nextChallengeButton;
     public Text progressText;
+
+    [Header("Result Sprites")]
+    public Sprite winSprite;
+    public Sprite defeatSprite;
 
     private List<string> finishEntries = new List<string>();
     private bool localPlayerFinished = false;
@@ -50,6 +55,8 @@ public class RaceResultUI : MonoBehaviour
 
         if (statusText == null)
             Debug.LogError("[RaceResultUI] statusText is NOT assigned in Inspector!");
+
+        SetResultImage(null);
     }
 
     /// <summary>
@@ -90,6 +97,11 @@ public class RaceResultUI : MonoBehaviour
                     statusText.text = $"DEFEAT - You finished {position}{suffix}";
             }
 
+            if (position == 1)
+                SetResultImage(winSprite);
+            else
+                SetResultImage(defeatSprite);
+
             // Show return button immediately for the finisher
             if (returnButton != null)
                 returnButton.gameObject.SetActive(true);
@@ -121,6 +133,18 @@ public class RaceResultUI : MonoBehaviour
 
         if (statusText != null && string.IsNullOrEmpty(statusText.text))
             statusText.text = "Race Over!";
+
+        if (localPlayerFinished && localFinishPosition > 0)
+        {
+            if (localFinishPosition == 1)
+                SetResultImage(winSprite);
+            else
+                SetResultImage(defeatSprite);
+        }
+        else
+        {
+            SetResultImage(null);
+        }
 
         if (returnButton != null)
             returnButton.gameObject.SetActive(true);
@@ -193,5 +217,14 @@ public class RaceResultUI : MonoBehaviour
         }
 
         nextChallengeButton.gameObject.SetActive(canShowNext);
+    }
+
+    void SetResultImage(Sprite sprite)
+    {
+        if (resultImage == null)
+            return;
+
+        resultImage.sprite = sprite;
+        resultImage.enabled = sprite != null;
     }
 }
