@@ -53,6 +53,13 @@ namespace resource.script
             
             var playerDataList = playerDataContainer.GetAllPlayerData();
             Debug.Log($"[GameSpawnManager] Spawning cars for {playerDataList.Count} players from saved data");
+
+            if (playerDataList.Count == 0)
+            {
+                Debug.LogWarning("[GameSpawnManager] No saved player data found. Falling back to connected players.");
+                SpawnCarsForConnectedPlayers();
+                return;
+            }
             
             foreach (var playerData in playerDataList)
             {
@@ -154,6 +161,7 @@ namespace resource.script
             var playerDataContainer = PlayerDataContainer.Instance ?? FindObjectOfType<PlayerDataContainer>();
             int carIndex = 0;
             string playerName = $"Player {conn.connectionId}";
+            bool hasSavedData = false;
             
             if (playerDataContainer != null)
             {
@@ -162,12 +170,24 @@ namespace resource.script
                 {
                     carIndex = data.Value.selectedCarIndex;
                     playerName = data.Value.playerName;
+                    hasSavedData = true;
                     Debug.Log($"[GameSpawnManager] Found saved data for {playerName}: Car {carIndex}");
                 }
+            }
+
+            if (!hasSavedData && OfflineRaceConfig.Instance != null && OfflineRaceConfig.Instance.IsOfflineMode)
+            {
+                carIndex = OfflineRaceConfig.Instance.SelectedCarIndex;
+                if (UserSession.Instance != null && !string.IsNullOrWhiteSpace(UserSession.Instance.DisplayName))
+                    playerName = UserSession.Instance.DisplayName;
                 else
-                {
-                    Debug.LogWarning($"[GameSpawnManager] No saved data for connection {conn.connectionId}, using defaults");
-                }
+                    playerName = "Offline Player";
+
+                Debug.Log($"[GameSpawnManager] Using offline selection for connection {conn.connectionId}: Car {carIndex} ({playerName})");
+            }
+            else if (!hasSavedData)
+            {
+                Debug.LogWarning($"[GameSpawnManager] No saved data for connection {conn.connectionId}, using defaults");
             }
             
             carIndex = Mathf.Clamp(carIndex, 0, carPrefabs.Length - 1);

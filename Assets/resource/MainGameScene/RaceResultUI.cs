@@ -3,6 +3,7 @@ using UnityEngine.UI;
 using System.Collections.Generic;
 using Mirror;
 using resource.MainMenuScene;
+using UnityEngine.SceneManagement;
 
 /// <summary>
 /// Attach to a Canvas in the game scene.
@@ -26,6 +27,10 @@ public class RaceResultUI : MonoBehaviour
     private List<string> finishEntries = new List<string>();
     private bool localPlayerFinished = false;
     private int localFinishPosition = -1;
+    private Sprite defaultResultSprite;
+    private Color defaultResultColor = Color.white;
+    private bool defaultResultImageEnabled;
+    private bool resultImageDefaultsCached;
 
     void Awake()
     {
@@ -39,6 +44,7 @@ public class RaceResultUI : MonoBehaviour
         if (returnButton != null)
         {
             returnButton.onClick.AddListener(OnReturnClicked);
+            returnButton.interactable = true;
             returnButton.gameObject.SetActive(false);
         }
         else
@@ -56,6 +62,7 @@ public class RaceResultUI : MonoBehaviour
         if (statusText == null)
             Debug.LogError("[RaceResultUI] statusText is NOT assigned in Inspector!");
 
+        ResolveResultImageReference();
         SetResultImage(null);
     }
 
@@ -106,6 +113,10 @@ public class RaceResultUI : MonoBehaviour
             if (returnButton != null)
                 returnButton.gameObject.SetActive(true);
 
+            // Ensure UI can be clicked when race ends.
+            Cursor.lockState = CursorLockMode.None;
+            Cursor.visible = true;
+
             UpdateOfflineButtons();
         }
         else if (localPlayerFinished)
@@ -149,6 +160,10 @@ public class RaceResultUI : MonoBehaviour
         if (returnButton != null)
             returnButton.gameObject.SetActive(true);
 
+        // Ensure UI can be clicked when race ends.
+        Cursor.lockState = CursorLockMode.None;
+        Cursor.visible = true;
+
         ApplyOfflineProgressIfNeeded();
         UpdateOfflineButtons();
     }
@@ -156,22 +171,41 @@ public class RaceResultUI : MonoBehaviour
     void OnReturnClicked()
     {
         Debug.Log("[RaceResultUI] Return button clicked");
+        if (returnButton != null)
+            returnButton.interactable = false;
 
-        // Use CustomNetworkManager's ReturnToMainMenu which properly handles
-        // stopping network + loading main menu scene
-        var netManager = NetworkManager.singleton as resource.MainMenuScene.CustomNetworkManager;
-        if (netManager != null)
+        StartCoroutine(ReturnToMenuRoutine());
+    }
+
+    System.Collections.IEnumerator ReturnToMenuRoutine()
+    {
+        // Use CustomNetworkManager's ReturnToMainMenu when available.
+        var customManager = NetworkManager.singleton as resource.MainMenuScene.CustomNetworkManager;
+        if (customManager != null)
         {
-            netManager.ReturnToMainMenu();
+            customManager.ReturnToMainMenu();
+            yield break;
         }
-        else
+
+        Debug.LogWarning("[RaceResultUI] CustomNetworkManager not found, using fallback return flow");
+
+        NetworkManager baseManager = NetworkManager.singleton;
+        if (baseManager != null)
         {
-            // Fallback: stop network and load main menu
-            Debug.LogWarning("[RaceResultUI] CustomNetworkManager not found, using fallback");
             if (NetworkServer.active && NetworkClient.isConnected)
-                NetworkManager.singleton.StopHost();
-            else if (NetworkClient.isConnected)
-                NetworkManager.singleton.StopClient();
+                baseManager.StopHost();
+            else if (NetworkServer.active)
+                baseManager.StopServer();
+            else if (NetworkClient.isConnected || NetworkClient.active)
+                baseManager.StopClient();
+        }
+
+        // Let Mirror finish shutdown before forcing scene load.
+        yield return null;
+
+        if (SceneManager.GetActiveScene().name != "MainMenuScene")
+        {
+            SceneManager.LoadScene("MainMenuScene");
         }
     }
 
@@ -224,7 +258,53 @@ public class RaceResultUI : MonoBehaviour
         if (resultImage == null)
             return;
 
-        resultImage.sprite = sprite;
-        resultImage.enabled = sprite != null;
+        if (sprite != null)
+        {
+            resultImage.sprite = sprite;
+            resultImage.color = Color.white;
+            resultImage.enabled = true;
+            return;
+        }
+
+        if (!resultImageDefaultsCached)
+        {
+            resultImage.enabled = false;
+            return;
+        }
+
+        // Restore initial panel art when we don't need win/defeat image yet.
+        resultImage.sprite = defaultResultSprite;
+        resultImage.color = defaultResultColor;
+        resultImage.enabled = defaultResultImageEnabled;
+    }
+
+    void ResolveResultImageReference()
+    {
+        if (resultImage == null && resultPanel != null)
+            resultImage = resultPanel.GetComponent<Image>();
+
+        if (resultImage == null && resultPanel != null)
+        {
+            Image[] images = resultPanel.GetComponentsInChildren<Image>(true);
+            foreach (var img in images)
+            {
+                if (img != null)
+                {
+                    resultImage = img;
+                    break;
+                }
+            }
+        }
+
+        if (resultImage == null)
+        {
+            Debug.LogWarning("[RaceResultUI] resultImage could not be auto-resolved. Assign it in Inspector.");
+            return;
+        }
+
+        defaultResultSprite = resultImage.sprite;
+        defaultResultColor = resultImage.color;
+        defaultResultImageEnabled = resultImage.enabled;
+        resultImageDefaultsCached = true;
     }
 }

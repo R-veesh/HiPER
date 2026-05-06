@@ -445,19 +445,45 @@ namespace resource.MainMenuScene
 
             if (OfflineRaceConfig.Instance != null)
                 OfflineRaceConfig.Instance.Clear();
-            
-            // Stop all network activity
-            if (NetworkServer.active)
+
+            StartCoroutine(ReturnToMainMenuRoutine());
+        }
+
+        System.Collections.IEnumerator ReturnToMainMenuRoutine()
+        {
+            // Stop all network activity first.
+            if (NetworkServer.active && NetworkClient.isConnected)
             {
-                NetworkManager.singleton.StopHost();
+                StopHost();
             }
-            else if (NetworkClient.active)
+            else if (NetworkServer.active)
             {
-                NetworkManager.singleton.StopClient();
+                StopServer();
             }
-            
-            // Load main menu scene
-            UnityEngine.SceneManagement.SceneManager.LoadScene(mainMenuScene);
+            else if (NetworkClient.active || NetworkClient.isConnected)
+            {
+                StopClient();
+            }
+
+            // Give Mirror one frame to finish teardown callbacks.
+            yield return null;
+
+            string targetScene = ResolveMainMenuSceneName();
+            if (!string.IsNullOrWhiteSpace(targetScene))
+                UnityEngine.SceneManagement.SceneManager.LoadScene(targetScene);
+            else
+                UnityEngine.SceneManagement.SceneManager.LoadScene("MainMenuScene");
+        }
+
+        string ResolveMainMenuSceneName()
+        {
+            if (string.IsNullOrWhiteSpace(mainMenuScene))
+                return "MainMenuScene";
+
+            if (mainMenuScene.EndsWith(".unity", System.StringComparison.OrdinalIgnoreCase))
+                return System.IO.Path.GetFileNameWithoutExtension(mainMenuScene);
+
+            return mainMenuScene;
         }
 
         int GetOfflineMapIndex(MapData mapData)
